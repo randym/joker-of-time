@@ -103,7 +103,9 @@ final class SessionManager: ObservableObject {
                 let msg = err.localizedDescription
                 DispatchQueue.main.async {
                     self.pendingStartPromptAfterPreflight = false
-                    if msg.contains(AutomationInvoker.loginFailedMessage) {
+                    if self.isNodeNotResolved(err) {
+                        self.showNodeNotFoundAlert()
+                    } else if msg.contains(AutomationInvoker.loginFailedMessage) {
                         self.showLoginFailedAlert()
                     } else if msg.contains(AutomationInvoker.networkErrorMessage) || msg.lowercased().contains("timeout") {
                         self.showNetworkErrorAlert()
@@ -218,7 +220,9 @@ final class SessionManager: ObservableObject {
                 self.applyClockInStateFromTimeCard()
             } else {
                 DispatchQueue.main.async {
-                    if output.contains(AutomationInvoker.alreadyClockedInMessage) {
+                    if self.isNodeNotResolvedMessage(output) {
+                        self.showNodeNotFoundAlert()
+                    } else if output.contains(AutomationInvoker.alreadyClockedInMessage) {
                         self.showAlreadyClockedInAlert()
                     } else if output.contains(AutomationInvoker.loginFailedMessage) {
                         self.showLoginFailedAlert()
@@ -244,7 +248,9 @@ final class SessionManager: ObservableObject {
                     self.clearStateAndPersist()
                 } else {
                     DispatchQueue.main.async {
-                        if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
+                        if self.isNodeNotResolvedMessage(output) {
+                            self.showNodeNotFoundAlert()
+                        } else if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
                             self.showGuardClockOutAlert(output: output)
                         } else if output.contains(AutomationInvoker.loginFailedMessage) {
                             self.showLoginFailedAlert()
@@ -343,6 +349,31 @@ final class SessionManager: ObservableObject {
         alert.runModal()
     }
 
+    private static let nodeNotResolvedErrorKind = "node_not_resolved"
+
+    private func isNodeNotResolved(_ error: Error) -> Bool {
+        (error as NSError).userInfo["JOTErrorKind"] as? String == Self.nodeNotResolvedErrorKind
+    }
+
+    private func isNodeNotResolvedMessage(_ message: String) -> Bool {
+        message == L10n.string("error.node_not_resolved")
+    }
+
+    private func showNodeNotFoundAlert() {
+        let alert = NSAlert()
+        alert.messageText = L10n.string("alert.node_not_found.title")
+        alert.informativeText = L10n.string("alert.node_not_found.message")
+        alert.alertStyle = .warning
+        if #available(macOS 11.0, *) {
+            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
+        }
+        alert.addButton(withTitle: L10n.string("alert.ok"))
+        alert.window.level = .statusBar
+        alert.window.makeKeyAndOrderFront(nil)
+        alert.window.center()
+        alert.runModal()
+    }
+
     private func showTimecardFetchFailedAlert(reason: String) {
         let alert = NSAlert()
         alert.messageText = L10n.string("alert.something_wrong.title")
@@ -376,7 +407,9 @@ final class SessionManager: ObservableObject {
                         self.applyClockInStateFromTimeCard()
                     } else {
                         DispatchQueue.main.async {
-                            if output.contains(AutomationInvoker.alreadyClockedInMessage) {
+                            if self.isNodeNotResolvedMessage(output) {
+                                self.showNodeNotFoundAlert()
+                            } else if output.contains(AutomationInvoker.alreadyClockedInMessage) {
                                 self.showAlreadyClockedInAlert()
                             } else if output.contains(AutomationInvoker.loginFailedMessage) {
                                 self.showLoginFailedAlert()
@@ -432,7 +465,9 @@ final class SessionManager: ObservableObject {
                 AppLogger.error("Stop-work: timecard sync failed \(err.localizedDescription), not showing dialog")
                 let msg = err.localizedDescription
                 DispatchQueue.main.async {
-                    if msg.contains(AutomationInvoker.loginFailedMessage) {
+                    if self.isNodeNotResolved(err) {
+                        self.showNodeNotFoundAlert()
+                    } else if msg.contains(AutomationInvoker.loginFailedMessage) {
                         self.showLoginFailedAlert()
                     } else if msg.contains(AutomationInvoker.networkErrorMessage) || msg.lowercased().contains("timeout") {
                         self.showNetworkErrorAlert()
@@ -510,7 +545,9 @@ final class SessionManager: ObservableObject {
                         self.clearStateAndPersist()
                     } else {
                         DispatchQueue.main.async {
-                            if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
+                            if self.isNodeNotResolvedMessage(output) {
+                                self.showNodeNotFoundAlert()
+                            } else if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
                                 self.showGuardClockOutAlert(output: output)
                             } else if output.contains(AutomationInvoker.loginFailedMessage) {
                                 self.showLoginFailedAlert()

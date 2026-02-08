@@ -36,6 +36,8 @@
 "alert.cannot_connect.message" = "設定のホストに接続できませんでした。King of Time の URL とインターネット接続を確認して、もう一度お試しください。";
 "alert.something_wrong.title" = "エラーが発生しました";
 "alert.something_wrong.message" = "設定の King of Time URL と接続を確認し、メニューから「同期」を試してください。";
+"alert.node_not_found.title" = "Node.js が見つかりません";
+"alert.node_not_found.message" = "Joker of Time は自動処理に Node.js が必要です。Node.js（nodejs.org や Homebrew など）をインストールし、PATH に含まれていることを確認してからアプリを再起動してください。";
 "alert.ok" = "OK";
 "alert.error_icon" = "エラー";
 

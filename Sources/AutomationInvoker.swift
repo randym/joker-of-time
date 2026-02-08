@@ -131,7 +131,7 @@ final class AutomationInvoker {
         }
         guard let nodePath = resolvedNodePath else {
             AppLogger.error("AutomationInvoker: node path not resolved (run startup check first)")
-            return (false, "")
+            return (false, L10n.string("error.node_not_resolved"))
         }
 
         let actionArg = action == .clockIn ? "clock-in" : "clock-out"
@@ -216,7 +216,10 @@ final class AutomationInvoker {
         }
         guard let nodePath = resolvedNodePath else {
             AppLogger.error("Timecard: node path not resolved (run startup check first)")
-            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.node_not_resolved")]))
+            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: L10n.string("error.node_not_resolved"),
+                "JOTErrorKind": "node_not_resolved"
+            ]))
         }
 
         let cmd: [String: Any] = [

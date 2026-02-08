@@ -36,6 +36,8 @@
 "alert.cannot_connect.message" = "We couldn't reach the host set in Settings. Check the King of Time URL and your internet connection, then try again.";
 "alert.something_wrong.title" = "Something went wrong";
 "alert.something_wrong.message" = "Check the King of Time URL in Settings and your connection, then try Sync from the menu.";
+"alert.node_not_found.title" = "Node.js not found";
+"alert.node_not_found.message" = "Joker of Time needs Node.js to run the automation. Install Node.js (e.g. from nodejs.org or Homebrew) and make sure it’s on your PATH, then restart the app.";
 "alert.ok" = "OK";
 "alert.error_icon" = "Error";
 
