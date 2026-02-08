@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-language" content="ja">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>My Recorder | KING OF TIME 勤怠管理</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #F8F7F8; }
+    .wrapper-all { max-width: 640px; margin: 0 auto; padding: 1rem; min-height: 100vh; box-sizing: border-box; }
+    .clearfix::after { content: ""; display: table; clear: both; }
+    header { margin-bottom: 1rem; }
+    .inline-area { display: inline-block; }
+    .section-name, .text-bold { font-weight: bold; }
+    .modal-wrapper { display: block; }
+    .modal-back { }
+    .modal-window { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); min-width: 280px; }
+    .modal-window-account { }
+    .modal-content.clearfix { }
+    .container { }
+    .modal-title { margin: 0 0 1rem; font-size: 1rem; }
+    .text-middle { }
+    .item-wrapper { margin-bottom: 1rem; }
+    .item-title { margin-bottom: 0.25rem; }
+    .input-text { width: 100%; padding: 0.4rem 0.6rem; font: inherit; box-sizing: border-box; }
+    .btn-control-outer { margin-top: 1rem; }
+    .btn-control-outer-size-short { }
+    .align-right { text-align: right; }
+    .btn-control-inner { display: inline-block; padding: 0.4rem 1rem; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; border: none; font-size: 1rem; }
+    .btn-control-inner-size-short { }
+    .btn-control-message { font-weight: bold; }
+    #notification_wrapper:not(.show) { display: none !important; }
+  </style>
+</head>
+<body class="no-vertical-scroll">
+  <div class="wrapper-all">
+    <header class="clearfix">
+      <div class="width-full">
+        <div class="inline-area header-first-area">
+          <div><div id="section_name" class="section-name text-bold"></div></div>
+        </div>
+        <div id="watch" class="watch inline-area header-second-area">
+          <div class="watch-year-to-date text-bold"></div>
+          <div class="watch-hour-to-sec text-bold"></div>
+        </div>
+        <div class="inline-area header-third-area">
+          <nav>
+            <div id="menu_icon" class="menu-icon">
+              <span class="announce-count menu-announce-count text-bold" style="display: none"></span>
+              <ul id="menu" class="menu" style="display: none"></ul>
+            </div>
+          </nav>
+          <nav>
+            <input type="button" id="history-button" value="" style="display: none" class="history-button">
+          </nav>
+        </div>
+      </div>
+    </header>
+    <div class="container clearfix">
+      <div class="content">
+        <div class="container names-area clearfix">
+          <div><div id="employee_name" class="text-bold text-x-large"></div></div>
+        </div>
+        <div class="container clearfix">
+          <select id="timerecorders" style="display: none"></select>
+          <ul id="buttons" class="btn-wrapper record-button-align-center"></ul>
+        </div>
+        <div id="location_area" class="container clearfix margin-top-half magin-bottom-half"></div>
+        <div id="local_record_info" class="container clearfix margin-top-half magin-bottom-half local-info"></div>
+        <div id="location_info" style="display: none" class="container clearfix margin-top-half magin-bottom-half"></div>
+        <div id="location_info_low1" style="display: none" class="container clearfix margin-top-half magin-bottom-half"></div>
+        <div id="location_info_low2" style="display: none" class="container clearfix margin-top-half magin-bottom-half"></div>
+        <div id="location_info_high1" style="display: none" class="container clearfix margin-top-half magin-bottom-half"></div>
+        <div id="location_info_high2" style="display: none" class="container clearfix margin-top-half magin-bottom-half"></div>
+      </div>
+    </div>
+    <footer class="clearfix">
+      <div id="copy_right" class="container text-x-small">© 2003 Human Technologies, Inc.</div>
+    </footer>
+  </div>
+  <div id="modal_wrapper" class="modal-wrapper" style="display: block">
+    <div id="modal_back" class="modal-back"></div>
+    <div id="modal_window" class="modal-window modal-window-account">
+      <div class="modal-content clearfix">
+        <div class="container">
+          <form method="GET" action="recorder.html" id="login-form">
+            <p class="modal-title text-middle">Please enter ID and password</p>
+            <div class="item-wrapper">
+              <div class="item-title text-middle text-bold">ID</div>
+              <input type="text" id="id" name="login_id" ime-mode="disabled" class="input-text" />
+            </div>
+            <div class="item-wrapper">
+              <div class="item-title text-middle text-bold">Password</div>
+              <input type="password" id="password" name="password" ime-mode="disabled" class="input-text" />
+            </div>
+            <div class="btn-control-outer btn-control-outer-size-short align-right">
+              <div class="btn-control-inner btn-control-inner-size-short" id="login-submit" role="button" tabindex="0">
+                <div class="btn-control-message">OK</div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="notification_wrapper" class="notification-wrapper clearfix">
+    <div id="notification_content" class="notification-message text-bold text-large"></div>
+  </div>
+  <script>
+    document.getElementById("login-submit").addEventListener("click", function () {
+      document.getElementById("login-form").submit();
+    });
+  </script>
+</body>
+</html>

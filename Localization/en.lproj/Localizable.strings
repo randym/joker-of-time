@@ -1,0 +1,139 @@
+/* Menu */
+"menu.about" = "About Joker of Time";
+"menu.clock_in" = "Clock In";
+"menu.clock_out" = "Clock Out";
+"menu.clocked_out_at" = "Clocked out: %@";
+"menu.sync" = "Sync Timecard";
+"menu.settings" = "Settings…";
+"menu.quit" = "Quit";
+
+/* Status / accessibility */
+"status.working" = "Working";
+"status.idle" = "Idle";
+"status.syncing" = "Syncing…";
+"status.over_planned" = "Over planned hours";
+"status.fetching" = "Fetching…";
+"status.done_for_day" = "Done for the day";
+"status.working_day_done" = "Working day, done for the day";
+"status.working_day_clocked_in" = "Working day, clocked in";
+"status.working_day_not_clocked_in" = "Working day, not clocked in";
+"status.non_working_day_clocked_in" = "Non-working day, clocked in";
+"status.non_working_day_not_clocked_in" = "Non-working day, not clocked in";
+"status.clocked_in" = "clocked in";
+"status.not_clocked_in" = "not clocked in";
+"status.day_type_not_fetched" = "%@ (day type not yet fetched)";
+"status.hours_worked" = "%dh %dm";
+
+/* Alerts */
+"alert.already_clocked_in.title" = "Already clocked in today";
+"alert.already_clocked_in.message" = "You have already clocked in. King of Time does not prevent duplicate clock-in records, so the app will not punch again to avoid creating a duplicate that you'd have to clean up manually.";
+"alert.cannot_clock_out.title" = "Cannot clock out";
+"alert.cannot_clock_out.not_clocked_in" = "You are not clocked in today, so there is nothing to clock out.";
+"alert.cannot_clock_out.already_clocked_out" = "You have already clocked out today.";
+"alert.login_failed.title" = "Login failed";
+"alert.login_failed.message" = "Check your username and password in Settings, and that the King of Time URL is correct.";
+"alert.cannot_connect.title" = "Can't connect to the server";
+"alert.cannot_connect.message" = "We couldn't reach the host set in Settings. Check the King of Time URL and your internet connection, then try again.";
+"alert.something_wrong.title" = "Something went wrong";
+"alert.something_wrong.message" = "Check the King of Time URL in Settings and your connection, then try Sync from the menu.";
+"alert.ok" = "OK";
+"alert.error_icon" = "Error";
+
+/* Stop-work dialog */
+"stop_work.critical.title" = "STOP WORK!";
+"stop_work.critical.message" = "You have reached your planned work limit. Clock out and stop working.";
+"stop_work.over.message" = "You are %dh %dm over your planned work limit. Clock out and stop working.";
+"stop_work.early.title" = "Clock out now?";
+"stop_work.early.message" = "You have not yet reached your planned hours (about %dh %dm remaining). Are you sure you want to clock out now?";
+"stop_work.confirm.title" = "Clock out now?";
+"stop_work.confirm.message" = "Are you sure you want to clock out?";
+"button.no_keep_working" = "No (Keep Working)";
+"button.yes_clock_out" = "Yes (Clock Out)";
+
+/* Start-work dialog */
+"start_work.dont_ask_again" = "Don't ask again today";
+"button.no" = "No";
+"button.yes" = "Yes";
+"start_work.msg0.title" = "Time to feed the beast.";
+"start_work.msg0.subtitle" = "One click. No browser. No login. Just clock in.";
+"start_work.msg1.title" = "The system awaits.";
+"start_work.msg1.subtitle" = "Punch in when you're ready. We'll handle the rest.";
+"start_work.msg2.title" = "Ready to be on the record?";
+"start_work.msg2.subtitle" = "Clock in once; we'll prompt you to clock out when your workday is done.";
+"start_work.msg3.title" = "Start work?";
+"start_work.msg3.subtitle" = "Clock in now and we'll remind you to clock out once you've reached your workday hours.";
+"start_work.msg4.title" = "Monkey no more.";
+"start_work.msg4.subtitle" = "Click once. We'll do the rest. Clock in?";
+"start_work.msg5.title" = "Another day, one less click.";
+"start_work.msg5.subtitle" = "Start work and forget the time sheet until we ping you.";
+
+/* Window titles — app name in all so Cmd+` and Exposé identify the app */
+"window.title" = "Joker of Time";
+"window.clock_in" = "Joker of Time – Clock in";
+"window.clock_out" = "Joker of Time – Clock out";
+"window.credentials" = "Joker of Time – Credentials";
+"window.settings" = "Joker of Time – Settings";
+
+/* About */
+"about.app_name" = "Joker of Time";
+"about.version" = "Version: %@ (%@)";
+"about.build" = "Build: %@";
+"about.os" = "OS: %@";
+"about.node" = "Node: %@";
+"about.status" = "Status: %@";
+"about.host" = "Host: %@";
+"about.logged_in_as" = "Logged in as: %@";
+"about.not_logged_in" = "Not logged in";
+"button.ok" = "OK";
+
+/* Credentials form */
+"credentials.title" = "King of Time login";
+"credentials.explanation" = "Enter the same login ID and password you use on the King of Time time recorder website. The app uses them to clock you in and out and sync your timecard from the menu bar—no browser needed.\n\nYour password is stored only in macOS Keychain on this Mac and is never sent anywhere except to King of Time when punching or syncing.";
+"credentials.stored_securely" = "Stored securely in your keychain.";
+"credentials.login_id" = "Login ID";
+"credentials.password" = "Password";
+"credentials.close" = "Close";
+"credentials.save" = "Save";
+"credentials.saved" = "Saved.";
+"credentials.cleared" = "Cleared.";
+"credentials.enter_login_password" = "Enter login ID and password.";
+"credentials.failed_to_save" = "Failed to save.";
+"credentials.masked" = "********";
+"credentials.error.save_failed" = "Could not save to Keychain. Make sure the app is installed and signed.";
+"credentials.error.corrupted" = "Stored credentials look corrupted. Please clear and re-enter them.";
+"credentials.error.not_allowed" = "Keychain access is not allowed for this build. Use the JokerOfTime app bundle.";
+"credentials.error.unavailable" = "Keychain is unavailable. Try reinstalling the app.";
+
+/* Errors (automation / timecard) */
+"error.daemon_no_response" = "Daemon did not respond; try again.";
+"error.daemon_no_timecard" = "Daemon did not return valid timecard; try Sync again.";
+"error.automation_not_found" = "Could not find automation directory or cli.js";
+"error.no_credentials" = "No stored credentials";
+"error.node_not_resolved" = "Node path not resolved";
+"error.no_stdout" = "No stdout from timecard-status";
+"error.try_sync" = "Try Sync from the menu.";
+"error.clock_in_failed" = "Clock-in failed. Try again or use Sync.";
+"error.clock_out_failed" = "Clock-out failed. Try again or use Sync.";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.subtitle" = "Customize how Joker of Time works on your Mac.";
+"settings.kot" = "King of Time";
+"settings.url" = "URL";
+"settings.open_in_browser" = "Open in Browser";
+"settings.url_help" = "Shown above is the URL in use (default or your custom one). Edit to point at a custom endpoint if your company uses one. Use \"Open in Browser\" if you need to fix something on the site.";
+"settings.example" = "Example:";
+"settings.example_url" = "https://s3.ta.kingoftime.jp/independent/recorder2/personal/";
+"settings.url_tip" = "(Tip: You usually don't need to change this unless your company uses a custom endpoint.)";
+"settings.credentials_help" = "King of Time login — stored in your keychain.";
+"settings.workday" = "Work day";
+"settings.hours_per_day" = "Work day length";
+"settings.workday_help" = "We'll prompt you to clock out after this many hours from clock-in.";
+"settings.workday_default" = "Default: 9 hours (e.g. 8 at work + 1 break).";
+"settings.general" = "General";
+"settings.launch_at_login" = "Launch Joker of Time at login";
+"settings.launch_at_login_help" = "Automatically start the app when you sign in.";
+"settings.close" = "Close";
+
+/* Format */
+"format.hours" = "%.1f hours";

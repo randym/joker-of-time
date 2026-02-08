@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Generated mock timecard (run yarn mock:timecard <state> to regenerate)
+mock-site/timecard.html
+mock-site/.clock-state.json
+
+# mock site reference
+mock-site/reference/
+
+# Generated icon intermediates (yarn build:icons creates .icns from JokerOfTime_1024.png)
+assets/JokerOfTime.iconset/
+
+# Build output
+dist/
+.dev/
+.build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Logs and runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDE and editors
+.cursor/
+.idea/
+.vim/
+*.swp
+*.swo
+*~
+
+# Swift Package Manager
+.swiftpm/
+
+# Local trigger file (tmp/ kept in repo via tmp/.gitkeep)
+tmp/swift-rebuild.trigger
+
+# Optional: lockfiles (uncomment if you want to ignore; many prefer to commit them)
+# package-lock.json
+# yarn.lock

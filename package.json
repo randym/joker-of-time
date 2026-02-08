@@ -1,0 +1,43 @@
+{
+  "name": "joker-of-time",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "author": "Randy Morgan",
+  "scripts": {
+    "build": "./scripts/build-app.sh",
+    "build:dmg": "./scripts/build-app.sh --dmg",
+    "clean": "./scripts/clean.sh",
+    "start": "node scripts/start-dev.js",
+    "timecard": "node scripts/prep-mock-timecard.js",
+    "clear-credentials": "node scripts/clear-credentials.js",
+    "clear-production-data": "./scripts/clear-production-data.sh",
+    "build:icons": "./scripts/make-icns.sh",
+    "release": "./scripts/build-app.sh --dmg --notarize"
+  },
+  "scriptsInfo": {
+    "build": "Production release: .app bundle (helper + Swift + Resources). Use build:dmg for DMG.",
+    "build:dmg": "Same as build but also creates signed dist/Joker of Time.dmg.",
+    "release": "Signed, notarized DMG. Uses notary profile AC_PASSWORD_KEY (run 'xcrun notarytool store-credentials AC_PASSWORD_KEY' once).",
+    "clean": "Swift package clean + remove .build, dist, .dev",
+    "start": "Dev with watch: build helper, mock KOT server, Swift app. App language follows OS.",
+    "timecard": "Set mock timecard state. Usage: yarn run timecard <state> (e.g. not-working | working-not-clocked-in | clocked-in | clocked-out)",
+    "clear-credentials": "Clear dev credentials (UserDefaults); restart app to see credentials form",
+    "clear-production-data": "Clear all production app user data (Keychain + UserDefaults for dist .app)",
+    "build:icons": "Rebuild app icon .icns from assets/JokerOfTime_1024.png"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  },
+  "devDependencies": {
+    "chokidar": "^4.0.0",
+    "@babel/generator": "^7.26.0",
+    "@babel/parser": "^7.26.0",
+    "@babel/traverse": "^7.26.0",
+    "@babel/types": "^7.26.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

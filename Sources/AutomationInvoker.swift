@@ -1,0 +1,419 @@
+import Foundation
+
+/// JSON payload from automation `timecard-status` command.
+struct TimecardStatusPayload: Codable {
+    let shouldWorkToday: Bool
+    let clockedIn: Bool
+    let clockInTime: String?
+    let clockedOut: Bool
+    let clockOutTime: String?
+    let todayLabel: String?
+}
+
+/// Runs the bundled Node automation (clock-in / clock-out / timecard-status) with credentials from Keychain.
+final class AutomationInvoker {
+    static let shared = AutomationInvoker()
+
+    enum ClockAction {
+        case clockIn
+        case clockOut
+    }
+
+    /// Guard failure reasons from automation (stderr message contains these).
+    static let alreadyClockedInMessage = "ALREADY_CLOCKED_IN"
+    static let alreadyClockedOutMessage = "ALREADY_CLOCKED_OUT"
+    static let notClockedInMessage = "NOT_CLOCKED_IN"
+    static let loginFailedMessage = "LOGIN_FAILED"
+    static let networkErrorMessage = "NETWORK_ERROR"
+
+    /// Full path to node binary, resolved once at startup via login shell so asdf/nvm work. We run this path directly so the clock command doesn't depend on PATH.
+    private var resolvedNodePath: String?
+    /// Node version string from startup check (e.g. "v22.11.0"); nil if not resolved or not found.
+    private var resolvedNodeVersion: String?
+
+    /// For About dialog: "v22.11.0" or "not found" if node was not resolved at startup.
+    var nodeVersionForAbout: String {
+        resolvedNodeVersion?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? resolvedNodeVersion!
+            : "not found"
+    }
+
+    /// Daemon: one long-lived browser process; we send JSON commands on stdin and read one JSON line per response from stdout. Serialized so only one command in flight.
+    private let daemonQueue = DispatchQueue(label: "AutomationInvoker.daemon")
+    private var daemonProcess: Process?
+    private var daemonStdinHandle: FileHandle?
+    private var daemonStdoutHandle: FileHandle?
+
+    private init() {}
+
+    /// Start the Node daemon (one browser) if not already running. Call on daemonQueue. Returns true if daemon is ready.
+    private func ensureDaemonRunning(automationDir: URL, cliURL: URL, nodePath: String) -> Bool {
+        if let proc = daemonProcess, proc.isRunning {
+            return true
+        }
+        daemonProcess?.terminate()
+        daemonStdinHandle?.closeFile()
+        daemonStdoutHandle?.closeFile()
+        daemonProcess = nil
+        daemonStdinHandle = nil
+        daemonStdoutHandle = nil
+        var env = ProcessInfo.processInfo.environment
+        env["KOT_BASE_URL"] = AppSettings.shared.effectiveKotBaseURL
+        if AppEnvironment.isLocal {
+            env["JOT_DEV"] = "1"
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: nodePath)
+        process.arguments = [cliURL.path, "daemon"]
+        process.currentDirectoryURL = automationDir
+        process.environment = env
+        let stdinPipe = Pipe()
+        let stdoutPipe = Pipe()
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = FileHandle.standardError
+        do {
+            try process.run()
+            daemonProcess = process
+            daemonStdinHandle = stdinPipe.fileHandleForWriting
+            daemonStdoutHandle = stdoutPipe.fileHandleForReading
+            AppLogger.info("AutomationInvoker: daemon started (one browser, reuse for all commands)")
+            return true
+        } catch {
+            AppLogger.error("AutomationInvoker: failed to start daemon: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Send one JSON command to the daemon and read one line of response. Call on daemonQueue. Returns the response line or nil on failure.
+    private func sendDaemonCommandAndReadLine(command: [String: Any]) -> String? {
+        guard let stdin = daemonStdinHandle, let stdout = daemonStdoutHandle,
+              let proc = daemonProcess, proc.isRunning else { return nil }
+        guard let data = try? JSONSerialization.data(withJSONObject: command),
+              let line = String(data: data, encoding: .utf8) else { return nil }
+        let lineWithNewline = line + "\n"
+        guard let writeData = lineWithNewline.data(using: .utf8) else { return nil }
+        stdin.write(writeData)
+        try? stdin.synchronize()
+        var buffer = Data()
+        while true {
+            let chunk = stdout.availableData
+            if chunk.isEmpty {
+                if !proc.isRunning { return nil }
+                Thread.sleep(forTimeInterval: 0.01)
+                continue
+            }
+            buffer.append(chunk)
+            if let str = String(data: buffer, encoding: .utf8), str.contains("\n") {
+                let firstLine = str.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)[0]
+                return String(firstLine).trimmingCharacters(in: .whitespaces)
+            }
+        }
+    }
+
+    /// Run the clock automation. Completion is called on a background thread. On failure, `output` contains stderr for guard detection (ALREADY_CLOCKED_IN etc.).
+    func runClock(action: ClockAction, completion: @escaping (Bool, _ output: String) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            let (success, output) = self.runClockSync(action: action)
+            completion(success, output)
+        }
+    }
+
+    private func runClockSync(action: ClockAction) -> (Bool, String) {
+        guard let automationDir = resolveAutomationDirectory(),
+              let cliURL = cliURL(automationDir: automationDir) else {
+            AppLogger.error("AutomationInvoker: could not find automation directory or cli.js")
+            return (false, "")
+        }
+        guard let creds = CredentialsManager.shared.loadCredentials() else {
+            AppLogger.error("AutomationInvoker: no stored credentials available")
+            return (false, "")
+        }
+        guard let nodePath = resolvedNodePath else {
+            AppLogger.error("AutomationInvoker: node path not resolved (run startup check first)")
+            return (false, "")
+        }
+
+        let actionArg = action == .clockIn ? "clock-in" : "clock-out"
+        let cmd: [String: Any] = [
+            "cmd": actionArg,
+            "username": creds.username,
+            "password": creds.password,
+            "baseUrl": AppSettings.shared.effectiveKotBaseURL,
+        ]
+        var daemonOutput: String?
+        daemonQueue.sync {
+            if ensureDaemonRunning(automationDir: automationDir, cliURL: cliURL, nodePath: nodePath) {
+                daemonOutput = sendDaemonCommandAndReadLine(command: cmd)
+            }
+        }
+        if let line = daemonOutput,
+           let data = line.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if json["ok"] as? Bool == true {
+                return (true, "")
+            }
+            let err = json["error"] as? String ?? line
+            let code = json["code"] as? String
+            let output = code ?? err
+            return (false, output)
+        }
+
+        // Don't start a second browser (one-shot) if the daemon is still running.
+        var daemonRunning = false
+        daemonQueue.sync { daemonRunning = daemonProcess?.isRunning == true }
+        if daemonRunning {
+            return (false, L10n.string("error.daemon_no_response"))
+        }
+        return runClockOneShot(automationDir: automationDir, cliURL: cliURL, nodePath: nodePath, action: action)
+    }
+
+    private func runClockOneShot(automationDir: URL, cliURL: URL, nodePath: String, action: ClockAction) -> (Bool, String) {
+        guard let creds = CredentialsManager.shared.loadCredentials() else { return (false, "") }
+        let actionArg = action == .clockIn ? "clock-in" : "clock-out"
+        var env = ProcessInfo.processInfo.environment
+        env["KOT_USERNAME"] = creds.username
+        env["KOT_PASSWORD"] = creds.password
+        env["KOT_BASE_URL"] = AppSettings.shared.effectiveKotBaseURL
+        if AppEnvironment.isLocal { env["JOT_DEV"] = "1" }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: nodePath)
+        process.arguments = [cliURL.path, actionArg]
+        process.currentDirectoryURL = automationDir
+        process.environment = env
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return (process.terminationStatus == 0, output)
+        } catch {
+            AppLogger.error("AutomationInvoker: failed to run: \(error.localizedDescription)")
+            return (false, "")
+        }
+    }
+
+    /// Run timecard-status and return parsed payload. Completion on background thread.
+    func runTimecardStatus(completion: @escaping (Result<TimecardStatusPayload, Error>) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            completion(self.runTimecardStatusSync())
+        }
+    }
+
+    private func runTimecardStatusSync() -> Result<TimecardStatusPayload, Error> {
+        AppLogger.info("CLI request: timecard-status")
+        guard let automationDir = resolveAutomationDirectory(),
+              let cliURL = cliURL(automationDir: automationDir) else {
+            AppLogger.error("Timecard: automation directory or cli.js not found")
+            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.automation_not_found")]))
+        }
+        guard let creds = CredentialsManager.shared.loadCredentials() else {
+            AppLogger.error("Timecard: no stored credentials")
+            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.no_credentials")]))
+        }
+        guard let nodePath = resolvedNodePath else {
+            AppLogger.error("Timecard: node path not resolved (run startup check first)")
+            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.node_not_resolved")]))
+        }
+
+        let cmd: [String: Any] = [
+            "cmd": "timecard-status",
+            "username": creds.username,
+            "password": creds.password,
+            "baseUrl": AppSettings.shared.effectiveKotBaseURL,
+        ]
+        var daemonLine: String?
+        daemonQueue.sync {
+            if ensureDaemonRunning(automationDir: automationDir, cliURL: cliURL, nodePath: nodePath) {
+                daemonLine = sendDaemonCommandAndReadLine(command: cmd)
+            }
+        }
+        if let line = daemonLine, let jsonData = line.data(using: .utf8), !jsonData.isEmpty {
+            if line.hasPrefix("{"), !line.hasPrefix("{\"error\"") {
+                do {
+                    let payload = try JSONDecoder().decode(TimecardStatusPayload.self, from: jsonData)
+                    AppLogger.info("Timecard payload (daemon): clockedIn=\(payload.clockedIn), clockInTime=\(payload.clockInTime ?? "nil")")
+                    return .success(payload)
+                } catch {
+                    AppLogger.error("Timecard daemon decode failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        // Don't start a second browser (one-shot) if the daemon is still running — we'd have two WebKit windows.
+        var daemonRunning = false
+        daemonQueue.sync { daemonRunning = daemonProcess?.isRunning == true }
+        if daemonRunning {
+            return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.daemon_no_timecard")]))
+        }
+        return runTimecardStatusOneShot(automationDir: automationDir, cliURL: cliURL, nodePath: nodePath, creds: creds)
+    }
+
+    private func runTimecardStatusOneShot(automationDir: URL, cliURL: URL, nodePath: String, creds: Credentials) -> Result<TimecardStatusPayload, Error> {
+        var env = ProcessInfo.processInfo.environment
+        env["KOT_USERNAME"] = creds.username
+        env["KOT_PASSWORD"] = creds.password
+        env["KOT_BASE_URL"] = AppSettings.shared.effectiveKotBaseURL
+        if AppEnvironment.isLocal { env["JOT_DEV"] = "1" }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: nodePath)
+        process.arguments = [cliURL.path, "timecard-status"]
+        process.currentDirectoryURL = automationDir
+        process.environment = env
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                AppLogger.error("Timecard process exited \(process.terminationStatus): \(output)")
+                return .failure(NSError(domain: "AutomationInvoker", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: output]))
+            }
+            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let raw = String(data: data, encoding: .utf8) ?? ""
+            var jsonLine = raw.split(separator: "\n", omittingEmptySubsequences: false)
+                .lazy
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .first { $0.hasPrefix("{") && $0.hasSuffix("}") }
+                ?? raw.trimmingCharacters(in: .whitespaces)
+            if jsonLine.hasPrefix("\u{FEFF}") { jsonLine = String(jsonLine.dropFirst()) }
+            guard let jsonData = jsonLine.data(using: .utf8), !jsonData.isEmpty else {
+                AppLogger.error("Timecard: no JSON in stdout")
+                return .failure(NSError(domain: "AutomationInvoker", code: -1, userInfo: [NSLocalizedDescriptionKey: L10n.string("error.no_stdout")]))
+            }
+            let payload = try JSONDecoder().decode(TimecardStatusPayload.self, from: jsonData)
+            AppLogger.info("Timecard payload (one-shot): clockedIn=\(payload.clockedIn)")
+            return .success(payload)
+        } catch {
+            AppLogger.error("Timecard one-shot failed: \(error.localizedDescription)")
+            return .failure(error)
+        }
+    }
+
+    /// Run at startup: prefer Homebrew node (real binary); fall back to shell's which node. Log path and version, store path for clock commands.
+    func performStartupNodeCheck() -> Bool {
+        let fm = FileManager.default
+        let homebrewPaths = ["/opt/homebrew/bin/node", "/usr/local/bin/node"]
+        for path in homebrewPaths {
+            if fm.isExecutableFile(atPath: path) {
+                if let version = runNodeVersion(at: path) {
+                    resolvedNodePath = path
+                    resolvedNodeVersion = version
+                    AppLogger.info("Startup: node path=\(path) version=\(version)")
+                    return true
+                }
+            }
+        }
+        guard let automationDir = resolveAutomationDirectory() else {
+            AppLogger.error("Startup: automation directory not found")
+            return false
+        }
+        let shellPath = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: shellPath)
+        process.arguments = ["-l", "-c", "which node; node --version"]
+        process.currentDirectoryURL = automationDir
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { String($0).trimmingCharacters(in: .whitespaces) }
+            let path = lines.first.flatMap { $0.isEmpty ? nil : $0 }
+            let version = lines.count > 1 ? lines[1] : nil
+            if process.terminationStatus == 0, let path = path, !path.isEmpty {
+                resolvedNodePath = path
+                resolvedNodeVersion = version ?? runNodeVersion(at: path)
+                AppLogger.info("Startup: node path=\(path) version=\(resolvedNodeVersion ?? "?")")
+                return true
+            }
+            AppLogger.error("Startup: node check failed (exit \(process.terminationStatus)) — \(output)")
+            return false
+        } catch {
+            AppLogger.error("Startup: could not run node check — \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Tell the automation to log "App started" in logs/clocker.log so each launch has a clear marker. Call after performStartupNodeCheck. No output needed.
+    func runAppStartLog() {
+        guard let automationDir = resolveAutomationDirectory(),
+              let url = cliURL(automationDir: automationDir),
+              let nodePath = resolvedNodePath else { return }
+        var env = ProcessInfo.processInfo.environment
+        if AppEnvironment.isLocal { env["JOT_DEV"] = "1" }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: nodePath)
+        process.arguments = [url.path, "app-start"]
+        process.currentDirectoryURL = automationDir
+        process.environment = env
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
+
+    /// Run node --version at the given path; returns version string or nil.
+    private func runNodeVersion(at path: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["--version"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Resolve automation directory: app bundle Resources when built, or build/automation (dev) or repo root with dist/ (legacy).
+    private func resolveAutomationDirectory() -> URL? {
+        if let resources = Bundle.main.resourceURL,
+           FileManager.default.fileExists(atPath: resources.appendingPathComponent("cli.js").path) {
+            return resources
+        }
+        // Dev (yarn start): look for .dev/cli.js
+        let fm = FileManager.default
+        var dir = URL(fileURLWithPath: fm.currentDirectoryPath)
+        for _ in 0..<10 {
+            let devDir = dir.appendingPathComponent(".dev")
+            let devCli = devDir.appendingPathComponent("cli.js")
+            if fm.fileExists(atPath: devCli.path) {
+                AppLogger.info("Automation dir (dev): \(devDir.path)")
+                return devDir
+            }
+            let parent = dir.deletingLastPathComponent()
+            if parent.path == dir.path { break }
+            dir = parent
+        }
+        AppLogger.error("Automation dir not found (searched from \(fm.currentDirectoryPath))")
+        return nil
+    }
+
+    /// CLI path: automation/dist/cli.js (bundle) or automation/cli.js (dev build/automation).
+    private func cliURL(automationDir: URL) -> URL? {
+        let dist = automationDir.appendingPathComponent("dist/cli.js")
+        if FileManager.default.fileExists(atPath: dist.path) { return dist }
+        let flat = automationDir.appendingPathComponent("cli.js")
+        if FileManager.default.fileExists(atPath: flat.path) { return flat }
+        return nil
+    }
+}

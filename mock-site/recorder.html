@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-language" content="ja">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>My Recorder | KING OF TIME 勤怠管理</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #F8F7F8; }
+    .wrapper-all { max-width: 640px; margin: 0 auto; padding: 1rem; }
+    .clearfix::after { content: ""; display: table; clear: both; }
+    header { margin-bottom: 1rem; }
+    .inline-area { display: inline-block; }
+    .section-name, .text-bold { font-weight: bold; }
+    .text-x-large { font-size: 1.25rem; }
+    .btn-text-x-large { font-size: 1.1rem; }
+    #employee_name { font-weight: bold; font-size: 1.25rem; }
+    .btn-wrapper.record-button-align-center { list-style: none; padding: 0; margin: 1rem 0; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .btn-wrapper li { display: block; }
+    .record-btn-outer.record { display: inline-block; }
+    .record-btn-inner {
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .record-btn-inner.record-clock-in { background: #e3f2fd; color: #0000ff; border-color: #0000ff; }
+    .record-btn-inner.record-clock-out { background: #ffebee; color: #ff0000; border-color: #ff0000; }
+    .record-btn-message { font-weight: bold; }
+    #menu_icon.menu-icon { position: relative; display: inline-block; }
+    #menu_icon .menu { list-style: none; padding: 0; margin: 0; display: block; }
+    #menu_icon .menu li { display: inline-block; margin-right: 0.5rem; }
+    #menu_icon .menu a { padding: 0.25rem 0.5rem; color: #0066cc; text-decoration: none; }
+    #menu_icon .menu a:hover { text-decoration: underline; }
+    #notification_wrapper { margin-top: 1rem; padding: 0.5rem; background: #e8f5e9; border-radius: 4px; }
+    #notification_wrapper:not(.show) { display: none !important; }
+    .reset-mock-btn { font-size: 0.85rem; color: #666; background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; }
+    .reset-mock-btn:hover { color: #333; border-color: #999; }
+  </style>
+</head>
+<body>
+  <div class="wrapper-all">
+    <header class="clearfix">
+      <div class="width-full">
+        <div class="inline-area header-first-area">
+          <div><div id="section_name" class="section-name text-bold">Engineering</div></div>
+        </div>
+        <div id="watch" class="watch inline-area header-second-area">
+          <div class="watch-year-to-date text-bold"></div>
+          <div class="watch-hour-to-sec text-bold"></div>
+        </div>
+        <div class="inline-area header-third-area">
+          <nav>
+            <div id="menu_icon" class="menu-icon">
+              <ul id="menu" class="menu">
+                <li class="menu-item"><a href="timecard.html?page_id=/working/monthly_individual_working_list" class="text-middle">タイムカード</a></li>
+                <li class="menu-item"><a href="#" class="text-middle">打刻履歴</a></li>
+                <li class="menu-item"><a href="#" class="text-middle">メッセージ</a></li>
+                <li class="menu-item"><a href="#" class="text-middle">テーマ切り替え</a></li>
+                <li class="menu-item"><a href="#" class="text-middle">ログアウト</a></li>
+              </ul>
+            </div>
+          </nav>
+          <nav><input type="button" id="history-button" value="" style="display:none" class="history-button"></nav>
+        </div>
+      </div>
+    </header>
+    <div class="container clearfix">
+      <div class="content">
+        <div class="container names-area clearfix">
+          <div><div id="employee_name" class="text-bold text-x-large">User</div></div>
+        </div>
+        <div class="container clearfix">
+          <select id="timerecorders" style="display: none;"></select>
+          <ul id="buttons" class="btn-wrapper record-button-align-center">
+            <li>
+              <div class="record-btn-outer record">
+                <div class="record-btn-inner record-clock-in">
+                  <div class="btn-arrow-icon"><div class="door"></div><div class="up-arrow"></div></div>
+                  <div class="record-btn-message text-bold btn-text-x-large">出勤</div>
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="record-btn-outer record">
+                <div class="record-btn-inner record-clock-out">
+                  <div class="btn-arrow-icon"><div class="door"></div><div class="down-arrow"></div></div>
+                  <div class="record-btn-message text-bold btn-text-x-large">退勤</div>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div id="notification_wrapper" class="notification-wrapper clearfix">
+          <div id="notification_content" class="notification-message text-bold"></div>
+        </div>
+        <p style="margin-top:1rem;"><button type="button" id="reset-mock" class="reset-mock-btn">Reset mock (working, not clocked in)</button></p>
+      </div>
+    </div>
+    <footer class="clearfix">
+      <div id="copy_right" class="container text-x-small">© 2003 Human Technologies, Inc.</div>
+    </footer>
+  </div>
+  <div id="modal_wrapper" class="modal-wrapper" style="display: none;">
+    <div id="modal_back" class="modal-back"></div>
+    <div id="modal_window" class="modal-window"></div>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var loginId = params.get("login_id");
+      if (loginId) document.getElementById("employee_name").textContent = loginId;
+    })();
+  </script>
+  <script>
+    function notify(msg) {
+      document.getElementById("notification_wrapper").classList.add("show");
+      document.getElementById("notification_content").textContent = msg;
+    }
+    document.querySelector(".record-clock-in").addEventListener("click", function () {
+      fetch("/mock-api/clock-in", { method: "POST" }).catch(function () {});
+      notify("出勤が完了しました。");
+    });
+    document.querySelector(".record-clock-out").addEventListener("click", function () {
+      fetch("/mock-api/clock-out", { method: "POST" }).catch(function () {});
+      notify("退勤が完了しました。");
+    });
+    document.getElementById("reset-mock").addEventListener("click", function () {
+      fetch("/mock-api/reset", { method: "POST" })
+        .then(function () { notify("Mock reset: timecard set to working, not clocked in."); })
+        .catch(function () { notify("Reset failed (mock server may not be running)."); });
+    });
+  </script>
+</body>
+</html>

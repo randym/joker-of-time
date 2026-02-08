@@ -1,0 +1,139 @@
+/* Menu */
+"menu.about" = "Joker of Time について";
+"menu.clock_in" = "出勤";
+"menu.clock_out" = "退勤";
+"menu.clocked_out_at" = "退勤時刻: %@";
+"menu.sync" = "タイムカード同期";
+"menu.settings" = "設定…";
+"menu.quit" = "終了";
+
+/* Status / accessibility */
+"status.working" = "勤務中";
+"status.idle" = "待機中";
+"status.syncing" = "同期中…";
+"status.over_planned" = "予定時間超過";
+"status.fetching" = "取得中…";
+"status.done_for_day" = "本日の勤務終了";
+"status.working_day_done" = "稼働日・本日の勤務終了";
+"status.working_day_clocked_in" = "稼働日・出勤中";
+"status.working_day_not_clocked_in" = "稼働日・未出勤";
+"status.non_working_day_clocked_in" = "非稼働日・出勤中";
+"status.non_working_day_not_clocked_in" = "非稼働日・未出勤";
+"status.clocked_in" = "出勤中";
+"status.not_clocked_in" = "未出勤";
+"status.day_type_not_fetched" = "%@（稼働日は未取得）";
+"status.hours_worked" = "%d時間 %d分";
+
+/* Alerts */
+"alert.already_clocked_in.title" = "本日は既に出勤打刻済みです";
+"alert.already_clocked_in.message" = "既に出勤打刻済みです。King of Time は二重打刻を防がないため、重複レコードを作成しないようアプリからは打刻しません。";
+"alert.cannot_clock_out.title" = "退勤できません";
+"alert.cannot_clock_out.not_clocked_in" = "本日は出勤打刻されていません。退勤する打刻がありません。";
+"alert.cannot_clock_out.already_clocked_out" = "本日は既に退勤打刻済みです。";
+"alert.login_failed.title" = "ログインに失敗しました";
+"alert.login_failed.message" = "設定のユーザー名とパスワード、および King of Time の URL を確認してください。";
+"alert.cannot_connect.title" = "サーバーに接続できません";
+"alert.cannot_connect.message" = "設定のホストに接続できませんでした。King of Time の URL とインターネット接続を確認して、もう一度お試しください。";
+"alert.something_wrong.title" = "エラーが発生しました";
+"alert.something_wrong.message" = "設定の King of Time URL と接続を確認し、メニューから「同期」を試してください。";
+"alert.ok" = "OK";
+"alert.error_icon" = "エラー";
+
+/* Stop-work dialog */
+"stop_work.critical.title" = "勤務終了！";
+"stop_work.critical.message" = "予定勤務時間に達しました。退勤して作業を終了してください。";
+"stop_work.over.message" = "予定勤務時間を %d 時間 %d 分超過しています。退勤して作業を終了してください。";
+"stop_work.early.title" = "今すぐ退勤しますか？";
+"stop_work.early.message" = "予定勤務時間まであと約 %d 時間 %d 分です。今すぐ退勤しますか？";
+"stop_work.confirm.title" = "今すぐ退勤しますか？";
+"stop_work.confirm.message" = "退勤してよろしいですか？";
+"button.no_keep_working" = "いいえ（勤務続行）";
+"button.yes_clock_out" = "はい（退勤）";
+
+/* Start-work dialog */
+"start_work.dont_ask_again" = "本日は再度聞かない";
+"button.no" = "いいえ";
+"button.yes" = "はい";
+"start_work.msg0.title" = "勤務開始の時間です。";
+"start_work.msg0.subtitle" = "ワンクリックで出勤。ブラウザもログインも不要。";
+"start_work.msg1.title" = "システムが待機しています。";
+"start_work.msg1.subtitle" = "準備ができたら出勤打刻を。あとはお任せください。";
+"start_work.msg2.title" = "勤務を記録しますか？";
+"start_work.msg2.subtitle" = "一度出勤すれば、勤務時間が終わったら退勤を促します。";
+"start_work.msg3.title" = "勤務を開始しますか？";
+"start_work.msg3.subtitle" = "今出勤すると、勤務時間に達したら退勤をリマインドします。";
+"start_work.msg4.title" = "シンプルに出勤。";
+"start_work.msg4.subtitle" = "クリック一回。あとは任せて。出勤しますか？";
+"start_work.msg5.title" = "今日もワンクリックで。";
+"start_work.msg5.subtitle" = "出勤したらタイムシートは忘れて。リマインドします。";
+
+/* Window titles */
+"window.title" = "Joker of Time";
+"window.clock_in" = "Joker of Time – 出勤";
+"window.clock_out" = "Joker of Time – 退勤";
+"window.credentials" = "Joker of Time – 認証情報";
+"window.settings" = "Joker of Time – 設定";
+
+/* About */
+"about.app_name" = "Joker of Time";
+"about.version" = "バージョン: %@ (%@)";
+"about.build" = "ビルド: %@";
+"about.os" = "OS: %@";
+"about.node" = "Node: %@";
+"about.status" = "状態: %@";
+"about.host" = "ホスト: %@";
+"about.logged_in_as" = "ログイン: %@";
+"about.not_logged_in" = "未ログイン";
+"button.ok" = "OK";
+
+/* Credentials form */
+"credentials.title" = "King of Time ログイン";
+"credentials.explanation" = "King of Time のタイムレコーダーサイトで使っているログイン ID とパスワードを入力してください。アプリはこれでメニューから出退勤の打刻やタイムカードの同期を行います（ブラウザは不要です）。\n\nパスワードはこの Mac の macOS キーチェーンのみに保存され、打刻・同期時以外の King of Time 以外には送信されません。";
+"credentials.stored_securely" = "キーチェーンに安全に保存されます。";
+"credentials.login_id" = "ログイン ID";
+"credentials.password" = "パスワード";
+"credentials.close" = "閉じる";
+"credentials.save" = "保存";
+"credentials.saved" = "保存しました。";
+"credentials.cleared" = "削除しました。";
+"credentials.enter_login_password" = "ログイン ID とパスワードを入力してください。";
+"credentials.failed_to_save" = "保存に失敗しました。";
+"credentials.masked" = "********";
+"credentials.error.save_failed" = "キーチェーンに保存できませんでした。アプリがインストールされ、署名されていることを確認してください。";
+"credentials.error.corrupted" = "保存された認証情報が壊れているようです。削除して再入力してください。";
+"credentials.error.not_allowed" = "このビルドではキーチェーンにアクセスできません。JokerOfTime アプリバンドルを使用してください。";
+"credentials.error.unavailable" = "キーチェーンを利用できません。アプリの再インストールをお試しください。";
+
+/* Errors (automation / timecard) */
+"error.daemon_no_response" = "デーモンが応答しませんでした。もう一度お試しください。";
+"error.daemon_no_timecard" = "デーモンが有効なタイムカードを返しませんでした。メニューから「同期」を試してください。";
+"error.automation_not_found" = "自動化ディレクトリまたは cli.js が見つかりません。";
+"error.no_credentials" = "保存された認証情報がありません";
+"error.node_not_resolved" = "Node のパスが解決されていません";
+"error.no_stdout" = "timecard-status の標準出力がありません";
+"error.try_sync" = "メニューから「同期」を試してください。";
+"error.clock_in_failed" = "出勤に失敗しました。もう一度お試しになるか、同期を実行してください。";
+"error.clock_out_failed" = "退勤に失敗しました。もう一度お試しになるか、同期を実行してください。";
+
+/* Settings */
+"settings.title" = "設定";
+"settings.subtitle" = "Joker of Time の動作をカスタマイズします。";
+"settings.kot" = "King of Time";
+"settings.url" = "URL";
+"settings.open_in_browser" = "ブラウザで開く";
+"settings.url_help" = "使用中の URL（既定またはカスタム）が表示されています。自社用エンドポイントがある場合は編集してください。サイト上で修正が必要な場合は「ブラウザで開く」を使用してください。";
+"settings.example" = "例:";
+"settings.example_url" = "https://s3.ta.kingoftime.jp/independent/recorder2/personal/";
+"settings.url_tip" = "（自社でカスタムエンドポイントを使っていない限り、通常は変更不要です。）";
+"settings.credentials_help" = "King of Time ログイン — キーチェーンに保存されます。";
+"settings.workday" = "勤務";
+"settings.hours_per_day" = "勤務時間";
+"settings.workday_help" = "出勤からこの時間経過後に退勤を促します。";
+"settings.workday_default" = "既定: 9 時間（例: 8時間勤務 + 1時間休憩）。";
+"settings.general" = "一般";
+"settings.launch_at_login" = "ログイン時に Joker of Time を起動";
+"settings.launch_at_login_help" = "サインイン時にアプリを自動で起動します。";
+"settings.close" = "閉じる";
+
+/* Format */
+"format.hours" = "%.1f 時間";
