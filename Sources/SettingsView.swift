@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var credentialsUsername: String = ""
     @State private var credentialsPassword: String = ""
     @State private var credentialsStatusMessage: String?
+    @State private var kotURLText: String = ""
 
     private var workdayHoursBinding: Binding<Double> {
         Binding(
@@ -79,16 +80,14 @@ struct SettingsView: View {
 
                             TextField(
                                 L10n.string("settings.url"),
-                                text: Binding(
-                                    get: { settings.effectiveKotBaseURL },
-                                    set: { newValue in
-                                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                        settings.kotBaseURL = (trimmed == AppSettings.defaultKotURL || trimmed.isEmpty) ? "" : trimmed
-                                        settings.save()
-                                    }
-                                )
+                                text: $kotURLText
                             )
                             .textFieldStyle(.roundedBorder)
+                            .onChange(of: kotURLText) { newValue in
+                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                settings.kotBaseURL = (trimmed == AppSettings.defaultKotURL || trimmed.isEmpty) ? "" : trimmed
+                                settings.save()
+                            }
 
                             Button(L10n.string("settings.open_in_browser")) {
                                 let base = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -242,6 +241,7 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 380)
+        .onAppear { kotURLText = settings.effectiveKotBaseURL }
     }
 }
 
