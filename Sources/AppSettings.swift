@@ -1,5 +1,28 @@
 import Foundation
 
+/// Log level for AppLogger. When level is N, messages at N and "lower" verbosity are emitted (e.g. at info we emit error, debug, info).
+enum LogLevel: String, CaseIterable, Comparable, Identifiable {
+    case none
+    case debug
+    case info
+    case verbose
+
+    var id: String { rawValue }
+
+    var ordinal: Int {
+        switch self {
+        case .none: return 0
+        case .debug: return 1
+        case .info: return 2
+        case .verbose: return 3
+        }
+    }
+
+    static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
+        lhs.ordinal < rhs.ordinal
+    }
+}
+
 /// User-configurable settings for JokerOfTime.
 /// Production (dist .app) and dev (swift run) never share storage: each uses a separate UserDefaults key so settings and user data cannot leak between builds.
 final class AppSettings: ObservableObject {
@@ -11,6 +34,8 @@ final class AppSettings: ObservableObject {
     @Published var kotBaseURL: String
     @Published var workdayHours: Double
     @Published var runOnLogin: Bool
+    /// Minimum log level to emit. Default: none in production, verbose in local.
+    @Published var logLevel: LogLevel
 
     private static let defaultsKeyProduction = "JokerOfTimeSettings"
     private static let defaultsKeyDev = "JokerOfTimeSettings.Dev"
@@ -19,14 +44,23 @@ final class AppSettings: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         let key = Self.defaultsKey
+        let defaultLogLevel: LogLevel = AppEnvironment.isLocal ? .verbose : .none
         if let stored = defaults.dictionary(forKey: key) {
             kotBaseURL = stored["kotBaseURL"] as? String ?? ""
             workdayHours = stored["workdayHours"] as? Double ?? 9
             runOnLogin = stored["runOnLogin"] as? Bool ?? true
+            if let raw = stored["logLevel"] as? String, let level = LogLevel(rawValue: raw) {
+                logLevel = level
+            } else if let enabled = stored["loggingEnabled"] as? Bool {
+                logLevel = enabled ? .info : .none
+            } else {
+                logLevel = defaultLogLevel
+            }
         } else {
             kotBaseURL = ""
             workdayHours = 9
             runOnLogin = true
+            logLevel = defaultLogLevel
         }
     }
 
@@ -34,7 +68,8 @@ final class AppSettings: ObservableObject {
         let payload: [String: Any] = [
             "kotBaseURL": kotBaseURL,
             "workdayHours": workdayHours,
-            "runOnLogin": runOnLogin
+            "runOnLogin": runOnLogin,
+            "logLevel": logLevel.rawValue
         ]
         UserDefaults.standard.set(payload, forKey: Self.defaultsKey)
     }
@@ -51,6 +86,34 @@ final class AppSettings: ObservableObject {
     /// Convenience for time-based calculations.
     var workDuration: TimeInterval {
         max(0, workdayHours) * 60 * 60
+    }
+
+    /// Regex: http or https, then host (localhost | IPv4 | hostname), optional port, optional path. Rejects typos like ht//, htp://.
+    private static let kotURLRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"^(https?):\/\/(localhost|\d{1,3}(?:\.\d{1,3}){3}|[A-Za-z0-9\-._~%]+)(?::\d{1,5})?(\/[^\s]*)?$"#,
+        options: []
+    )
+
+    /// Validation error message for the KOT URL field, or nil if valid. Shared so SettingsView and SettingsWindowController can block close consistently.
+    static func kotURLValidationError(trimmed: String) -> String? {
+        if trimmed.isEmpty { return nil }
+        let lower = trimmed.lowercased()
+        if lower.contains("//") && !lower.hasPrefix("http://") && !lower.hasPrefix("https://") {
+            return L10n.string("settings.url_invalid")
+        }
+        let withScheme = trimmed.contains("://") ? trimmed : "https://" + trimmed
+        guard let regex = kotURLRegex else {
+            return L10n.string("settings.url_invalid")
+        }
+        let nsRange = NSRange(withScheme.startIndex..<withScheme.endIndex, in: withScheme)
+        guard regex.firstMatch(in: withScheme, options: [], range: nsRange) != nil else {
+            return L10n.string("settings.url_invalid")
+        }
+        let lowerWithScheme = withScheme.lowercased()
+        if !AppEnvironment.isLocal && lowerWithScheme.hasPrefix("http://") {
+            return L10n.string("settings.url_use_https")
+        }
+        return nil
     }
 }
 

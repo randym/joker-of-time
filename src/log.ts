@@ -1,9 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
-
-const LOG_DIR = "logs";
-const LOG_FILE = "clocker.log";
-
 function timestamp(): string {
   return new Date().toISOString();
 }
@@ -13,16 +7,10 @@ function line(level: string, ...args: unknown[]): string {
   return `${timestamp()} [${level}] ${msg}`;
 }
 
-function writeToFile(level: string, ...args: unknown[]): void {
-  if (!process.env.JOT_DEV) return;
-  try {
-    const dir = path.join(process.cwd(), LOG_DIR);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const filePath = path.join(dir, LOG_FILE);
-    fs.appendFileSync(filePath, line(level, ...args) + "\n");
-  } catch {
-    // ignore
-  }
+// Intentionally no-op: Node automation never writes logs directly to disk.
+// Swift owns log files; we marshal diagnostics via stdout/stderr instead.
+function writeToFile(_level: string, ..._args: unknown[]): void {
+  // no-op
 }
 
 const isDev = process.env.JOT_DEV === "1";
@@ -30,18 +18,18 @@ const isDev = process.env.JOT_DEV === "1";
 // Log to stderr so stdout is reserved for JSON output (e.g. timecard-status); Swift reads only stdout for parsing.
 // In production, only errors go to stderr so user logs don't fill up; info/debug are dev-only.
 export function info(...args: unknown[]): void {
-  if (isDev) console.error("[clock-helper]", ...args);
+  if (isDev) console.error(...args);
   writeToFile("INFO", ...args);
 }
 
 export function error(...args: unknown[]): void {
-  console.error("[clock-helper]", ...args);
+  console.error(...args);
   writeToFile("ERROR", ...args);
 }
 
 export function debug(...args: unknown[]): void {
   if (process.env.DEBUG) {
-    if (isDev) console.error("[clock-helper]", ...args);
+    if (isDev) console.error(...args);
     writeToFile("DEBUG", ...args);
   }
 }

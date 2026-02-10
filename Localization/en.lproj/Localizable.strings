@@ -2,7 +2,7 @@
 "menu.about" = "About Joker of Time";
 "menu.clock_in" = "Clock In";
 "menu.clock_out" = "Clock Out";
-"menu.clocked_out_at" = "Clocked out: %@";
+"menu.today_label" = "Today: %@";
 "menu.sync" = "Sync Timecard";
 "menu.settings" = "Settings…";
 "menu.quit" = "Quit";
@@ -10,6 +10,7 @@
 /* Status / accessibility */
 "status.working" = "Working";
 "status.idle" = "Idle";
+"status.not_ready" = "Not ready";
 "status.syncing" = "Syncing…";
 "status.over_planned" = "Over planned hours";
 "status.fetching" = "Fetching…";
@@ -24,6 +25,18 @@
 "status.day_type_not_fetched" = "%@ (day type not yet fetched)";
 "status.hours_worked" = "%dh %dm";
 
+/* Today summary */
+"status.today_not_clocked_in" = "Not Clocked In";
+"status.today_non_working" = "Non Working Day";
+"status.today_est_suffix" = "est";
+
+/* Preflight (not ready reasons) */
+"preflight.not_ready" = "Not ready";
+"preflight.network_offline" = "Network offline";
+"preflight.node_not_found" = "Node not found";
+"preflight.keychain_error" = "Keychain error";
+"preflight.cannot_reach_site" = "Cannot reach site";
+
 /* Alerts */
 "alert.already_clocked_in.title" = "Already clocked in today";
 "alert.already_clocked_in.message" = "You have already clocked in. King of Time does not prevent duplicate clock-in records, so the app will not punch again to avoid creating a duplicate that you'd have to clean up manually.";
@@ -34,6 +47,10 @@
 "alert.login_failed.message" = "Check your username and password in Settings, and that the King of Time URL is correct.";
 "alert.cannot_connect.title" = "Can't connect to the server";
 "alert.cannot_connect.message" = "We couldn't reach the host set in Settings. Check the King of Time URL and your internet connection, then try again.";
+"alert.network_offline.title" = "You're offline";
+"alert.network_offline.message" = "Connect to the internet and try again. The app will sync automatically when you're back online.";
+"alert.cannot_reach_site.title" = "Cannot reach site";
+"alert.cannot_reach_site.message" = "We couldn't reach the King of Time URL. Check the URL in Settings and try again.";
 "alert.something_wrong.title" = "Something went wrong";
 "alert.something_wrong.message" = "Check the King of Time URL in Settings and your connection, then try Sync from the menu.";
 "alert.node_not_found.title" = "Node.js not found";
@@ -123,10 +140,13 @@
 "settings.kot" = "King of Time";
 "settings.url" = "URL";
 "settings.open_in_browser" = "Open in Browser";
+"settings.use_default_url" = "Use default";
 "settings.url_help" = "Shown above is the URL in use (default or your custom one). Edit to point at a custom endpoint if your company uses one. Use \"Open in Browser\" if you need to fix something on the site.";
 "settings.example" = "Example:";
 "settings.example_url" = "https://s3.ta.kingoftime.jp/independent/recorder2/personal/";
 "settings.url_tip" = "(Tip: You usually don't need to change this unless your company uses a custom endpoint.)";
+"settings.url_invalid" = "Invalid URL. Enter a valid base URL (e.g. https://…).";
+"settings.url_use_https" = "Production requires HTTPS. Use https:// for the King of Time URL.";
 "settings.credentials_help" = "King of Time login — stored in your keychain.";
 "settings.workday" = "Work day";
 "settings.hours_per_day" = "Work day length";
@@ -135,7 +155,18 @@
 "settings.general" = "General";
 "settings.launch_at_login" = "Launch Joker of Time at login";
 "settings.launch_at_login_help" = "Automatically start the app when you sign in.";
+"settings.enable_logging" = "Enable logging";
+"settings.enable_logging_help" = "Write logs to stderr and to ~/Library/Application Support/JokerOfTime. Off by default in production, on by default in development.";
+"settings.log_level" = "Log level";
+"settings.log_level.none" = "None";
+"settings.log_level.debug" = "Debug";
+"settings.log_level.info" = "Info";
+"settings.log_level.verbose" = "Verbose";
+"settings.log_level_help" = "None = no logs. Debug = errors + debug. Info = + user actions and launch. Verbose = + preflight and automation detail. Default: None in production, Verbose in development.";
 "settings.close" = "Close";
+"settings.cannot_close_invalid.title" = "Fix URL before closing";
+"settings.cannot_close_invalid.ok" = "OK";
+"settings.fix_url_to_close" = "Fix the URL or use \"Use default\" before closing.";
 
 /* Format */
 "format.hours" = "%.1f hours";

@@ -93,10 +93,12 @@ struct CredentialsForm: View {
             HStack {
                 Spacer()
                 Button(L10n.string("credentials.close")) {
+                    AppLogger.info("User: Credentials close")
                     tryCloseCredentialsWindow()
                 }
                 .keyboardShortcut(.cancelAction)
                 Button(L10n.string("credentials.save")) {
+                    AppLogger.info("User: Credentials save")
                     save()
                 }
                 .buttonStyle(.borderedProminent)

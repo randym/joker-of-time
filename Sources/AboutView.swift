@@ -91,6 +91,7 @@ struct AboutView: View {
                 HStack {
                     Spacer()
                     Button(L10n.string("button.ok")) {
+                        AppLogger.info("User: About OK")
                         NSApplication.shared.keyWindow?.close()
                     }
                     .buttonStyle(.bordered)

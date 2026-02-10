@@ -14,6 +14,8 @@ final class SessionManager: ObservableObject {
     @Published var isAutomationRunning: Bool = false
     /// From last successful time card fetch; used for About dialog.
     @Published var lastKnownIsWorkingDay: Bool?
+    /// Human-readable label for today's timecard row (e.g. "未打刻", "08:54 – 17:53（予定）", "08:54 – 18:12").
+    @Published var todayLabel: String?
 
     /// Dev and production must not share: each uses its own key so settings/user data never leak between builds.
     private static var dontAskAgainKey: String { AppEnvironment.isLocal ? "KOTDontAskAgainDay.Dev" : "KOTDontAskAgainDay" }
@@ -36,8 +38,9 @@ final class SessionManager: ObservableObject {
             }
             switch result {
             case .success(let payload):
+                PreflightState.shared.setSiteReachable(true)
                 let workingDay = payload.shouldWorkToday
-                AppLogger.info("Timecard success: clockedIn=\(payload.clockedIn), clockedOut=\(payload.clockedOut), clockInTime=\(payload.clockInTime ?? "nil")")
+                AppLogger.info("Session: timecard success clockedIn=\(payload.clockedIn), clockedOut=\(payload.clockedOut), clockInTime=\(payload.clockInTime ?? "nil")")
                 if payload.clockedOut {
                     // Done for the day: clocked in and out; cannot clock in again.
                     let clockIn: Date? = payload.clockInTime.flatMap { Self.today(atTime: $0) }
@@ -47,6 +50,7 @@ final class SessionManager: ObservableObject {
                         self.objectWillChange.send()
                         self.clockInTime = clockIn
                         self.clockedOutTime = clockOut
+                        self.todayLabel = payload.todayLabel
                         self.isDoneForTheDay = true
                         self.isWorking = false
                         self.isOverTime = false
@@ -66,17 +70,18 @@ final class SessionManager: ObservableObject {
                         fallback.second = 0
                         return Calendar.current.date(from: fallback) ?? Date()
                     }()
-                    AppLogger.info("Applying clocked-in state, clockIn=\(clockIn)")
+                    AppLogger.verbose("Session: applying clocked-in state, clockIn=\(clockIn)")
                     DispatchQueue.main.async {
                         self.setLastKnownWorkingDay(workingDay)
                         self.objectWillChange.send()
                         self.clockInTime = clockIn
                         self.clockedOutTime = nil
+                        self.todayLabel = payload.todayLabel
                         self.isDoneForTheDay = false
                         self.isWorking = true
                         self.isOverTime = false
                         self.scheduleTimers(from: clockIn)
-                        AppLogger.info("Session state updated: isWorking=true, clockInTime set")
+                        AppLogger.verbose("Session: state updated isWorking=true, clockInTime set")
                         NotificationCenter.default.post(name: .sessionStateDidChange, object: nil)
                         done()
                     }
@@ -84,6 +89,7 @@ final class SessionManager: ObservableObject {
                     DispatchQueue.main.async {
                         self.setLastKnownWorkingDay(workingDay)
                         self.objectWillChange.send()
+                        self.todayLabel = payload.todayLabel
                         self.isDoneForTheDay = false
                         self.clockedOutTime = nil
                         if self.isWorking {
@@ -99,9 +105,11 @@ final class SessionManager: ObservableObject {
                     }
                 }
             case .failure(let err):
-                AppLogger.error("Timecard fetch failed: \(err.localizedDescription)")
+                AppLogger.error("Session: timecard fetch failed \(err.localizedDescription)")
+                PreflightState.shared.setSiteReachable(false)
                 let msg = err.localizedDescription
                 DispatchQueue.main.async {
+                    self.todayLabel = nil
                     self.pendingStartPromptAfterPreflight = false
                     if self.isNodeNotResolved(err) {
                         self.showNodeNotFoundAlert()
@@ -296,6 +304,9 @@ final class SessionManager: ObservableObject {
         alert.messageText = L10n.string("alert.already_clocked_in.title")
         alert.informativeText = L10n.string("alert.already_clocked_in.message")
         alert.alertStyle = .informational
+        if #available(macOS 11.0, *) {
+            alert.icon = NSImage(systemSymbolName: "info.circle.fill", accessibilityDescription: nil)
+        }
         alert.addButton(withTitle: L10n.string("alert.ok"))
         alert.window.level = .statusBar
         alert.window.makeKeyAndOrderFront(nil)
@@ -312,20 +323,8 @@ final class SessionManager: ObservableObject {
             alert.informativeText = L10n.string("alert.cannot_clock_out.already_clocked_out")
         }
         alert.alertStyle = .informational
-        alert.addButton(withTitle: L10n.string("alert.ok"))
-        alert.window.level = .statusBar
-        alert.window.makeKeyAndOrderFront(nil)
-        alert.window.center()
-        alert.runModal()
-    }
-
-    private func showLoginFailedAlert() {
-        let alert = NSAlert()
-        alert.messageText = L10n.string("alert.login_failed.title")
-        alert.informativeText = L10n.string("alert.login_failed.message")
-        alert.alertStyle = .warning
         if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
+            alert.icon = NSImage(systemSymbolName: "info.circle.fill", accessibilityDescription: nil)
         }
         alert.addButton(withTitle: L10n.string("alert.ok"))
         alert.window.level = .statusBar
@@ -334,19 +333,36 @@ final class SessionManager: ObservableObject {
         alert.runModal()
     }
 
+    func showLoginFailedAlert() {
+        showTimecardFailureAlert(
+            title: L10n.string("alert.login_failed.title"),
+            message: L10n.string("alert.login_failed.message")
+        )
+    }
+
+    /// Offline (no internet): own dialog; dismiss does NOT open Settings — user can't fix connectivity there.
+    func showNetworkOfflineAlert() {
+        showAlertOnly(
+            title: L10n.string("alert.network_offline.title"),
+            message: L10n.string("alert.network_offline.message")
+        )
+    }
+
+    /// Site unreachable (bad URL, host down, etc.): own dialog; dismiss opens Settings and focuses URL.
+    func showCannotReachSiteAlert() {
+        showTimecardFailureAlert(
+            title: L10n.string("alert.cannot_reach_site.title"),
+            message: L10n.string("alert.cannot_reach_site.message")
+        )
+    }
+
+    /// Route to offline vs cannot-reach-site dialog based on connectivity; only one opens Settings on dismiss.
     private func showNetworkErrorAlert() {
-        let alert = NSAlert()
-        alert.messageText = L10n.string("alert.cannot_connect.title")
-        alert.informativeText = L10n.string("alert.cannot_connect.message")
-        alert.alertStyle = .warning
-        if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
+        if !PreflightState.shared.networkConnected {
+            showNetworkOfflineAlert()
+        } else {
+            showCannotReachSiteAlert()
         }
-        alert.addButton(withTitle: L10n.string("alert.ok"))
-        alert.window.level = .statusBar
-        alert.window.makeKeyAndOrderFront(nil)
-        alert.window.center()
-        alert.runModal()
     }
 
     private static let nodeNotResolvedErrorKind = "node_not_resolved"
@@ -359,10 +375,25 @@ final class SessionManager: ObservableObject {
         message == L10n.string("error.node_not_resolved")
     }
 
-    private func showNodeNotFoundAlert() {
+    func showNodeNotFoundAlert() {
+        showTimecardFailureAlert(
+            title: L10n.string("alert.node_not_found.title"),
+            message: L10n.string("alert.node_not_found.message")
+        )
+    }
+
+    private func showTimecardFetchFailedAlert(reason: String) {
+        showTimecardFailureAlert(
+            title: L10n.string("alert.something_wrong.title"),
+            message: L10n.string("alert.something_wrong.message")
+        )
+    }
+
+    /// Show alert only; no Settings on dismiss (e.g. network offline — user can't fix that in Settings).
+    private func showAlertOnly(title: String, message: String) {
         let alert = NSAlert()
-        alert.messageText = L10n.string("alert.node_not_found.title")
-        alert.informativeText = L10n.string("alert.node_not_found.message")
+        alert.messageText = title
+        alert.informativeText = message
         alert.alertStyle = .warning
         if #available(macOS 11.0, *) {
             alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
@@ -374,28 +405,25 @@ final class SessionManager: ObservableObject {
         alert.runModal()
     }
 
-    private func showTimecardFetchFailedAlert(reason: String) {
-        let alert = NSAlert()
-        alert.messageText = L10n.string("alert.something_wrong.title")
-        alert.informativeText = L10n.string("alert.something_wrong.message")
-        alert.alertStyle = .warning
-        if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
+    /// Show alert for timecard/site failure; on dismiss open Settings and focus URL so user can fix URL/credentials.
+    func showTimecardFailureAlert(title: String, message: String) {
+        showAlertOnly(title: title, message: message)
+        DispatchQueue.main.async {
+            SettingsWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
+            }
         }
-        alert.addButton(withTitle: L10n.string("alert.ok"))
-        alert.window.level = .statusBar
-        alert.window.makeKeyAndOrderFront(nil)
-        alert.window.center()
-        alert.runModal()
     }
 
     private func showStartWorkPrompt() {
         StartWorkPromptPresenter.present(
             onYes: { [weak self] in
+                AppLogger.info("User: Start Work — Yes")
                 guard let self else { return }
                 StatusItemManager.lastModalDismissTime = Date()
                 if self.isWorking {
-                    AppLogger.info("Session: already clocked in today, skipping duplicate clock-in")
+                    AppLogger.debug("Session: already clocked in today, skipping duplicate clock-in")
                     return
                 }
                 self.objectWillChange.send()
@@ -423,6 +451,7 @@ final class SessionManager: ObservableObject {
                 }
             },
             onNo: { [weak self] dontAskAgain in
+                AppLogger.info("User: Start Work — No, dontAskAgain=\(dontAskAgain)")
                 guard let self else { return }
                 StatusItemManager.lastModalDismissTime = Date()
                 if dontAskAgain {
@@ -441,12 +470,12 @@ final class SessionManager: ObservableObject {
             switch result {
             case .success(let payload):
                 if payload.clockedOut {
-                    AppLogger.info("Stop-work: timecard says already clocked out — updating state, not showing dialog")
+                    AppLogger.debug("Session: stop-work timecard says already clocked out — updating state, not showing dialog")
                     self.applyTimecardPayloadNotClockedIn(payload)
                     return
                 }
                 if !payload.clockedIn {
-                    AppLogger.info("Stop-work: timecard says not clocked in — updating state, not showing dialog")
+                    AppLogger.debug("Session: stop-work timecard says not clocked in — updating state, not showing dialog")
                     self.applyTimecardPayloadNotClockedIn(payload)
                     return
                 }
@@ -462,7 +491,7 @@ final class SessionManager: ObservableObject {
                     }
                 }
             case .failure(let err):
-                AppLogger.error("Stop-work: timecard sync failed \(err.localizedDescription), not showing dialog")
+                AppLogger.error("Session: stop-work timecard sync failed \(err.localizedDescription), not showing dialog")
                 let msg = err.localizedDescription
                 DispatchQueue.main.async {
                     if self.isNodeNotResolved(err) {
@@ -535,6 +564,7 @@ final class SessionManager: ObservableObject {
             message: message,
             isCritical: hasMetNineHours,
             onYes: { [weak self] in
+                AppLogger.info("User: Stop Work — Yes, clock out")
                 StatusItemManager.lastModalDismissTime = Date()
                 guard let self else { return }
                 self.objectWillChange.send()
@@ -561,6 +591,7 @@ final class SessionManager: ObservableObject {
                 }
             },
             onNo: { [weak self] in
+                AppLogger.info("User: Stop Work — No, keep working")
                 StatusItemManager.lastModalDismissTime = Date()
                 guard let self else { return }
                 if hasMetNineHours {

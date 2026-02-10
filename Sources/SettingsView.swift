@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var credentialsPassword: String = ""
     @State private var credentialsStatusMessage: String?
     @State private var kotURLText: String = ""
+    @State private var urlValidationMessage: String?
+    @FocusState private var urlFieldFocused: Bool
 
     private var workdayHoursBinding: Binding<Double> {
         Binding(
@@ -83,20 +85,43 @@ struct SettingsView: View {
                                 text: $kotURLText
                             )
                             .textFieldStyle(.roundedBorder)
+                            .focused($urlFieldFocused)
                             .onChange(of: kotURLText) { newValue in
                                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                settings.kotBaseURL = (trimmed == AppSettings.defaultKotURL || trimmed.isEmpty) ? "" : trimmed
+                                let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
+                                urlValidationMessage = msg
+                                SettingsWindowController.shared.setCurrentURLString(trimmed)
+                                if msg != nil { return }
+                                if trimmed.isEmpty { return }
+                                settings.kotBaseURL = trimmed
                                 settings.save()
                             }
 
-                            Button(L10n.string("settings.open_in_browser")) {
-                                let base = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                                let urlString = base.contains("://") ? base : "https://" + base
-                                if let url = URL(string: urlString) {
-                                    NSWorkspace.shared.open(url)
-                                }
+                            if let msg = urlValidationMessage {
+                                Text(msg)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
                             }
-                            .buttonStyle(.bordered)
+
+                            HStack(spacing: 8) {
+                                Button(L10n.string("settings.open_in_browser")) {
+                                    AppLogger.info("User: Settings open in browser")
+                                    let base = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    let urlString = base.contains("://") ? base : "https://" + base
+                                    if let url = URL(string: urlString) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                Button(L10n.string("settings.use_default_url")) {
+                                    AppLogger.info("User: Settings use default URL")
+                                    kotURLText = ""
+                                    settings.kotBaseURL = ""
+                                    settings.save()
+                                    urlValidationMessage = nil
+                                }
+                                .buttonStyle(.bordered)
+                            }
 
                             Text(L10n.string("settings.url_help"))
                                 .font(.caption)
@@ -149,6 +174,7 @@ struct SettingsView: View {
 
                             HStack(spacing: 8) {
                                 Button(L10n.string("credentials.save")) {
+                                    AppLogger.info("User: Settings save credentials")
                                     let user = credentialsUsername.trimmingCharacters(in: .whitespaces)
                                     if user.isEmpty || credentialsPassword.isEmpty {
                                         credentialsStatusMessage = L10n.string("credentials.enter_login_password")
@@ -209,13 +235,32 @@ struct SettingsView: View {
                                 set: { newValue in
                                     settings.runOnLogin = newValue
                                     settings.save()
-                                    LoginItemManager.shared.setEnabled(newValue)
+                                    if !AppEnvironment.isLocal {
+                                        LoginItemManager.shared.setEnabled(newValue)
+                                    }
                                 }
                             )) {
                                 Text(L10n.string("settings.launch_at_login"))
                             }
 
                             Text(L10n.string("settings.launch_at_login_help"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Picker(L10n.string("settings.log_level"), selection: Binding(
+                                get: { settings.logLevel },
+                                set: { newValue in
+                                    settings.logLevel = newValue
+                                    settings.save()
+                                }
+                            )) {
+                                ForEach(LogLevel.allCases) { level in
+                                    Text(L10n.string("settings.log_level.\(level.rawValue)")).tag(level)
+                                }
+                            }
+                            .pickerStyle(.menu)
+
+                            Text(L10n.string("settings.log_level_help"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -233,6 +278,19 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button(L10n.string("settings.close")) {
+                    AppLogger.info("User: Settings Close tapped")
+                    let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    AppLogger.verbose("Settings: Close tapped — kotURLText.trimmed=\(trimmed.isEmpty ? "(empty)" : trimmed)")
+                    SettingsWindowController.shared.setCurrentURLString(trimmed)
+                    let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
+                    AppLogger.verbose("Settings: Close — validator result=\(msg ?? "nil"), blocking=\(msg != nil)")
+                    urlValidationMessage = msg
+                    if msg != nil {
+                        AppLogger.verbose("Settings: Close — keeping window open, setting red text and focus")
+                        urlFieldFocused = true
+                        return
+                    }
+                    AppLogger.verbose("Settings: Close — valid, closing window (timecard sync runs in windowWillClose if credentials present)")
                     NSApplication.shared.keyWindow?.close()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -241,7 +299,22 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 380)
-        .onAppear { kotURLText = settings.effectiveKotBaseURL }
+        .onAppear {
+            kotURLText = settings.effectiveKotBaseURL
+            let trimmed = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
+            AppLogger.verbose("Settings: onAppear — effectiveURL=\(trimmed.isEmpty ? "(empty)" : trimmed), validationError=\(msg ?? "nil")")
+            urlValidationMessage = msg
+            SettingsWindowController.shared.setCurrentURLString(trimmed)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsFocusURLField)) { _ in
+            let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
+            AppLogger.verbose("Settings: onReceive(settingsFocusURLField) — setting red text and focus, msg=\(msg ?? "nil")")
+            urlValidationMessage = msg
+            SettingsWindowController.shared.setValidationError(msg)
+            urlFieldFocused = true
+        }
     }
 }
 

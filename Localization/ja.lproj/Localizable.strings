@@ -2,7 +2,7 @@
 "menu.about" = "Joker of Time について";
 "menu.clock_in" = "出勤";
 "menu.clock_out" = "退勤";
-"menu.clocked_out_at" = "退勤時刻: %@";
+"menu.today_label" = "今日: %@";
 "menu.sync" = "タイムカード同期";
 "menu.settings" = "設定…";
 "menu.quit" = "終了";
@@ -10,6 +10,7 @@
 /* Status / accessibility */
 "status.working" = "勤務中";
 "status.idle" = "待機中";
+"status.not_ready" = "準備できていません";
 "status.syncing" = "同期中…";
 "status.over_planned" = "予定時間超過";
 "status.fetching" = "取得中…";
@@ -24,6 +25,18 @@
 "status.day_type_not_fetched" = "%@（稼働日は未取得）";
 "status.hours_worked" = "%d時間 %d分";
 
+/* Today summary */
+"status.today_not_clocked_in" = "未出勤";
+"status.today_non_working" = "非稼働日";
+"status.today_est_suffix" = "予定";
+
+/* Preflight (not ready reasons) */
+"preflight.not_ready" = "準備できていません";
+"preflight.network_offline" = "ネットワークオフライン";
+"preflight.node_not_found" = "Node が見つかりません";
+"preflight.keychain_error" = "Keychain エラー";
+"preflight.cannot_reach_site" = "サイトに接続できません";
+
 /* Alerts */
 "alert.already_clocked_in.title" = "本日は既に出勤打刻済みです";
 "alert.already_clocked_in.message" = "既に出勤打刻済みです。King of Time は二重打刻を防がないため、重複レコードを作成しないようアプリからは打刻しません。";
@@ -34,6 +47,10 @@
 "alert.login_failed.message" = "設定のユーザー名とパスワード、および King of Time の URL を確認してください。";
 "alert.cannot_connect.title" = "サーバーに接続できません";
 "alert.cannot_connect.message" = "設定のホストに接続できませんでした。King of Time の URL とインターネット接続を確認して、もう一度お試しください。";
+"alert.network_offline.title" = "オフラインです";
+"alert.network_offline.message" = "インターネットに接続してからやり直してください。接続すると自動的に同期されます。";
+"alert.cannot_reach_site.title" = "サイトに接続できません";
+"alert.cannot_reach_site.message" = "King of Time の URL に接続できませんでした。設定の URL を確認してやり直してください。";
 "alert.something_wrong.title" = "エラーが発生しました";
 "alert.something_wrong.message" = "設定の King of Time URL と接続を確認し、メニューから「同期」を試してください。";
 "alert.node_not_found.title" = "Node.js が見つかりません";
@@ -123,10 +140,13 @@
 "settings.kot" = "King of Time";
 "settings.url" = "URL";
 "settings.open_in_browser" = "ブラウザで開く";
+"settings.use_default_url" = "既定を使用";
 "settings.url_help" = "使用中の URL（既定またはカスタム）が表示されています。自社用エンドポイントがある場合は編集してください。サイト上で修正が必要な場合は「ブラウザで開く」を使用してください。";
 "settings.example" = "例:";
 "settings.example_url" = "https://s3.ta.kingoftime.jp/independent/recorder2/personal/";
 "settings.url_tip" = "（自社でカスタムエンドポイントを使っていない限り、通常は変更不要です。）";
+"settings.url_invalid" = "無効な URL です。有効なベース URL（例: https://…）を入力してください。";
+"settings.url_use_https" = "本番環境では HTTPS が必要です。King of Time の URL に https:// を使用してください。";
 "settings.credentials_help" = "King of Time ログイン — キーチェーンに保存されます。";
 "settings.workday" = "勤務";
 "settings.hours_per_day" = "勤務時間";
@@ -135,7 +155,18 @@
 "settings.general" = "一般";
 "settings.launch_at_login" = "ログイン時に Joker of Time を起動";
 "settings.launch_at_login_help" = "サインイン時にアプリを自動で起動します。";
+"settings.enable_logging" = "ログを有効にする";
+"settings.enable_logging_help" = "ログを stderr と ~/Library/Application Support/JokerOfTime に書き出します。本番では既定でオフ、開発では既定でオンです。";
+"settings.log_level" = "ログレベル";
+"settings.log_level.none" = "なし";
+"settings.log_level.debug" = "デバッグ";
+"settings.log_level.info" = "情報";
+"settings.log_level.verbose" = "詳細";
+"settings.log_level_help" = "なし = ログなし。デバッグ = エラーとデバッグ。情報 = + ユーザ操作と起動。詳細 = + プリフライトと自動化の詳細。既定: 本番はなし、開発は詳細。";
 "settings.close" = "閉じる";
+"settings.cannot_close_invalid.title" = "閉じる前に URL を修正してください";
+"settings.cannot_close_invalid.ok" = "OK";
+"settings.fix_url_to_close" = "閉じる前に URL を修正するか「既定を使用」を押してください。";
 
 /* Format */
 "format.hours" = "%.1f 時間";

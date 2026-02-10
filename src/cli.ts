@@ -96,10 +96,13 @@ async function main() {
           console.log(JSON.stringify({ error: "Unknown command: " + (body as { cmd?: string }).cmd }));
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
         const code =
-          msg === ALREADY_CLOCKED_IN || msg === ALREADY_CLOCKED_OUT || msg === NOT_CLOCKED_IN ? msg : undefined;
-        console.log(JSON.stringify({ error: msg, code }));
+          (err as any)?.automationCode ??
+          (err instanceof Error ? err.message : "UNKNOWN_ERROR");
+        const message =
+          (err as any)?.automationMessage ??
+          (err instanceof Error ? err.message : String(err));
+        console.log(JSON.stringify({ error: code, message }));
       }
     });
     rl.on("close", () => {
@@ -134,7 +137,14 @@ async function main() {
       console.log(JSON.stringify(status));
       process.exit(0);
     } catch (err) {
-      log.error("timecard-status failed:", err instanceof Error ? err.message : err);
+      const code =
+        (err as any)?.automationCode ??
+        (err instanceof Error ? err.message : "UNKNOWN_ERROR");
+      const message =
+        (err as any)?.automationMessage ??
+        (err instanceof Error ? err.message : String(err));
+      log.error("timecard-status failed:", message);
+      console.log(JSON.stringify({ error: code, message }));
       process.exit(1);
     } finally {
       await browserRef.close();
@@ -142,7 +152,7 @@ async function main() {
   }
 
   if (action !== "clock-in" && action !== "clock-out") {
-    log.error("Usage: clock-helper <clock-in|clock-out|timecard-status|daemon>");
+    log.error("Usage: automation <clock-in|clock-out|timecard-status|daemon>");
     process.exit(1);
   }
 
