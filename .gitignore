@@ -54,3 +54,5 @@ tmp/swift-rebuild.trigger
 # Optional: lockfiles (uncomment if you want to ignore; many prefer to commit them)
 # package-lock.json
 # yarn.lock
+
+docs/sf-symbols-names.txt
