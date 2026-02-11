@@ -10,10 +10,6 @@ let package = Package(
         .executable(
             name: "JokerOfTime",
             targets: ["JokerOfTime"]
-        ),
-        .executable(
-            name: "LoginItemHelper",
-            targets: ["LoginItemHelper"]
         )
     ],
     targets: [
@@ -23,11 +19,6 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
-        ),
-        .executableTarget(
-            name: "LoginItemHelper",
-            path: "LoginItemHelper",
-            exclude: ["Info.plist"]
         )
     ]
 )

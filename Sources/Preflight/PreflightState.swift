@@ -113,7 +113,7 @@ final class PreflightState: ObservableObject {
         if !networkConnected { return "wifi.exclamationmark.circle" }
         if nodeResolved != true { return "circle.slash" }
         if keychainError != nil, !(keychainError?.isEmpty ?? true) { return "person.crop.circle.badge.exclamationmark" }
-        if !siteReachable { return "link.circle" }
+        if !siteReachable { return "mappin.slash.circle" }
         return "circle.slash"
     }
 }

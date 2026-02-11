@@ -119,14 +119,23 @@ async function ensureLoggedIn(page: Page, username: string, password: string, ba
   const btn = page.locator(LOGIN_BUTTON_SELECTOR).first();
   log.info("Login submitted");
   const tBeforeRecorder = Date.now();
+  // Dismiss any JS alert (site shows alert on bad credentials) so it doesn't block
+  page.once("dialog", (d) => d.accept());
+  await btn.click();
+  // Wait for recorder UI. Don't race modal_back — it can appear briefly during processing for good creds too.
   try {
-    await Promise.all([
-      page.waitForURL((u) => u.href.includes("recorder"), { timeout: PAGE_LOAD_TIMEOUT_MS }),
-      btn.click(),
-    ]);
+    await page.waitForSelector(RECORDER_SELECTOR, { state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
   } catch (err) {
-    if (isTimeoutError(err)) throw new Error(LOGIN_FAILED);
-    throw err;
+    if (!isTimeoutError(err)) throw err;
+    // Timeout: distinguish bad credentials (login form/modal still visible) vs site timeout
+    const loginFormVisible = await page.locator(LOGIN_USER_SELECTOR).first().isVisible().catch(() => false);
+    const modalVisible = await page.locator("#modal_back, .modal-back").first().isVisible().catch(() => false);
+    if (loginFormVisible || modalVisible) {
+      log.info("Login failed: login form or error modal still visible after timeout — bad credentials");
+      throwAutomationError(BAD_CREDENTIALS, new Error("Invalid username or password"));
+    }
+    log.info("Login failed: recorder did not appear within timeout — site may be slow or unreachable");
+    throwAutomationError(LOGIN_TIMEOUT, new Error("Site did not respond in time. Check your connection."));
   }
   log.info("URL after login:", page.url(), `(${Date.now() - tBeforeRecorder}ms)`);
   log.info("Login succeeded, on recorder", `(ensureLoggedIn ${Date.now() - t0}ms total)`);
@@ -160,7 +169,7 @@ export async function navigateToTimecard(page: Page): Promise<void> {
   log.info("Opening menu (upper right)");
   const menuTrigger = page.locator(RECORDER_MENU_TRIGGER_SELECTOR).first();
   await menuTrigger.waitFor({ state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
-  await menuTrigger.click();
+  await menuTrigger.click({ timeout: PAGE_LOAD_TIMEOUT_MS });
   log.info("Clicking time card link");
   const timecardLink = page.locator(TIMECARD_LINK_SELECTOR).first();
   await timecardLink.waitFor({ state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
@@ -170,7 +179,7 @@ export async function navigateToTimecard(page: Page): Promise<void> {
       (u) => u.href.includes("timecard") || u.href.includes("monthly_individual_working_list"),
       { timeout: PAGE_LOAD_TIMEOUT_MS }
     ),
-    timecardLink.click(),
+    timecardLink.click({ timeout: PAGE_LOAD_TIMEOUT_MS }),
   ]);
   await page.waitForLoadState("domcontentloaded", { timeout: PAGE_LOAD_TIMEOUT_MS });
   log.info("Time card URL:", page.url(), `(navigateToTimecard ${Date.now() - t0}ms)`);
@@ -303,6 +312,8 @@ export const ALREADY_CLOCKED_IN = "ALREADY_CLOCKED_IN";
 export const ALREADY_CLOCKED_OUT = "ALREADY_CLOCKED_OUT";
 export const NOT_CLOCKED_IN = "NOT_CLOCKED_IN";
 export const LOGIN_FAILED = "LOGIN_FAILED";
+export const BAD_CREDENTIALS = "BAD_CREDENTIALS";
+export const LOGIN_TIMEOUT = "LOGIN_TIMEOUT";
 export const NETWORK_ERROR = "NETWORK_ERROR";
 
 /** Clock flow: start at recorder, ensure logged in, find and click the clock-in or clock-out button. */

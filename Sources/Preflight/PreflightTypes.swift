@@ -42,3 +42,10 @@ protocol PreflightTask {
     func execute(context: PreflightContext) -> PreflightResult
 }
 
+/// Where preflight was triggered from, so UI can behave slightly differently if needed.
+enum PreflightUIContext {
+    case startup
+    case manualSync
+    case autoResync
+    case settingsClose
+}

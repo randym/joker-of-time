@@ -6,10 +6,12 @@ struct SettingsView: View {
     @ObservedObject private var credentials = CredentialsManager.shared
     @State private var credentialsUsername: String = ""
     @State private var credentialsPassword: String = ""
-    @State private var credentialsStatusMessage: String?
     @State private var kotURLText: String = ""
     @State private var urlValidationMessage: String?
     @FocusState private var urlFieldFocused: Bool
+    @State private var nodePathText: String = ""
+    @FocusState private var nodePathFieldFocused: Bool
+    @FocusState private var credentialsUsernameFocused: Bool
 
     private var workdayHoursBinding: Binding<Double> {
         Binding(
@@ -73,204 +75,174 @@ struct SettingsView: View {
 
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    GroupBox(L10n.string("settings.kot")) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(L10n.string("settings.url"))
-                                .font(.subheadline)
-
-                            TextField(
-                                L10n.string("settings.url"),
-                                text: $kotURLText
-                            )
-                            .textFieldStyle(.roundedBorder)
-                            .focused($urlFieldFocused)
-                            .onChange(of: kotURLText) { newValue in
-                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
-                                urlValidationMessage = msg
-                                SettingsWindowController.shared.setCurrentURLString(trimmed)
-                                if msg != nil { return }
-                                if trimmed.isEmpty { return }
-                                settings.kotBaseURL = trimmed
-                                settings.save()
-                            }
-
-                            if let msg = urlValidationMessage {
-                                Text(msg)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-
-                            HStack(spacing: 8) {
-                                Button(L10n.string("settings.open_in_browser")) {
-                                    AppLogger.info("User: Settings open in browser")
-                                    let base = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    let urlString = base.contains("://") ? base : "https://" + base
-                                    if let url = URL(string: urlString) {
-                                        NSWorkspace.shared.open(url)
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                Button(L10n.string("settings.use_default_url")) {
-                                    AppLogger.info("User: Settings use default URL")
-                                    kotURLText = ""
-                                    settings.kotBaseURL = ""
-                                    settings.save()
-                                    urlValidationMessage = nil
-                                }
-                                .buttonStyle(.bordered)
-                            }
-
-                            Text(L10n.string("settings.url_help"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.string("settings.example"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(L10n.string("settings.example_url"))
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-
-                            Text(L10n.string("settings.url_tip"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    GroupBox(L10n.string("credentials.title")) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(L10n.string("settings.credentials_help"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L10n.string("credentials.login_id"))
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Account (production + local)
+                        GroupBox(L10n.string("settings.section.account")) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(L10n.string("credentials.title"))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                                TextField(L10n.string("credentials.login_id"), text: $credentialsUsername)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L10n.string("credentials.password"))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                SecureField(L10n.string("credentials.password"), text: $credentialsPassword, prompt: Text(credentials.hasStoredCredentials ? L10n.string("credentials.masked") : L10n.string("credentials.password")))
-                                    .textFieldStyle(.roundedBorder)
-                            }
-
-                            if let status = credentialsStatusMessage ?? credentials.keychainErrorMessage {
-                                Text(status)
+                                Text(L10n.string("settings.credentials_help"))
                                     .font(.caption)
-                                    .foregroundStyle(status == L10n.string("credentials.saved") ? Color.primary : Color.red)
-                            }
-
-                            HStack(spacing: 8) {
-                                Button(L10n.string("credentials.save")) {
-                                    AppLogger.info("User: Settings save credentials")
-                                    let user = credentialsUsername.trimmingCharacters(in: .whitespaces)
-                                    if user.isEmpty || credentialsPassword.isEmpty {
-                                        credentialsStatusMessage = L10n.string("credentials.enter_login_password")
-                                        return
-                                    }
-                                    credentialsStatusMessage = nil
-                                    if CredentialsManager.shared.saveCredentials(username: user, password: credentialsPassword) {
-                                        credentialsStatusMessage = L10n.string("credentials.saved")
-                                        SessionManager.shared.clearSessionStateForNewCredentials()
-                                        DispatchQueue.main.async { runTimeCardTask() }
-                                    } else {
-                                        credentialsStatusMessage = credentials.keychainErrorMessage ?? L10n.string("credentials.failed_to_save")
-                                    }
+                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L10n.string("credentials.login_id"))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    TextField(L10n.string("credentials.login_id"), text: $credentialsUsername)
+                                        .textFieldStyle(.roundedBorder)
+                                        .focused($credentialsUsernameFocused)
+                                        .onChange(of: credentialsUsername) { _ in
+                                            SettingsWindowController.shared.setCurrentCredentials(username: credentialsUsername, password: credentialsPassword)
+                                        }
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(credentialsUsername.trimmingCharacters(in: .whitespaces).isEmpty || credentialsPassword.isEmpty)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L10n.string("credentials.password"))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    SecureField(L10n.string("credentials.password"), text: $credentialsPassword, prompt: Text(credentials.hasStoredCredentials ? L10n.string("credentials.masked") : L10n.string("credentials.password")))
+                                        .textFieldStyle(.roundedBorder)
+                                        .onChange(of: credentialsPassword) { _ in
+                                            SettingsWindowController.shared.setCurrentCredentials(username: credentialsUsername, password: credentialsPassword)
+                                        }
+                                }
+                                if let status = credentials.keychainErrorMessage {
+                                    Text(status)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .onAppear {
+                                if let creds = CredentialsManager.shared.loadCredentials() {
+                                    credentialsUsername = creds.username
+                                }
+                                credentialsPassword = ""
+                                SettingsWindowController.shared.setCurrentCredentials(username: credentialsUsername, password: credentialsPassword)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .onAppear {
-                            if let creds = CredentialsManager.shared.loadCredentials() {
-                                credentialsUsername = creds.username
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                        .id("credentialsSection")
 
-                    GroupBox(L10n.string("settings.workday")) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .center, spacing: 8) {
+                        // Automation (production + local)
+                        GroupBox(L10n.string("settings.section.automation")) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 Text(L10n.string("settings.hours_per_day"))
-                                Text(L10n.string("format.hours", settings.workdayHours))
-                                    .frame(minWidth: 36, alignment: .trailing)
-                                Stepper(
-                                    "",
-                                    value: workdayHoursBinding,
-                                    in: 4...12,
-                                    step: 0.5
-                                )
+                                    .font(.subheadline)
+                                HStack(alignment: .center, spacing: 8) {
+                                    Text(L10n.string("format.hours", settings.workdayHours))
+                                        .frame(minWidth: 36, alignment: .trailing)
+                                    Stepper("", value: workdayHoursBinding, in: 4...12, step: 0.5)
+                                }
+                                Text(L10n.string("settings.workday_help"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-
-                            Text(L10n.string("settings.workday_help"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Text(L10n.string("settings.workday_default"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    GroupBox(L10n.string("settings.general")) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Toggle(isOn: Binding(
-                                get: { settings.runOnLogin },
-                                set: { newValue in
-                                    settings.runOnLogin = newValue
-                                    settings.save()
-                                    if !AppEnvironment.isLocal {
-                                        LoginItemManager.shared.setEnabled(newValue)
+                        // App (production + local)
+                        GroupBox(L10n.string("settings.section.app")) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle(isOn: Binding(
+                                    get: { settings.runOnLogin },
+                                    set: { newValue in
+                                        settings.runOnLogin = newValue
+                                        settings.save()
+                                        if !AppEnvironment.isLocal {
+                                            LoginItemManager.shared.setEnabled(newValue)
+                                        }
+                                    }
+                                )) {
+                                    Text(L10n.string("settings.launch_at_login"))
+                                }
+                                Text(L10n.string("settings.launch_at_login_help"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if AppEnvironment.isLocal {
+                            GroupBox(L10n.string("settings.kot")) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(L10n.string("settings.url"))
+                                        .font(.subheadline)
+                                    TextField(L10n.string("settings.url"), text: $kotURLText)
+                                        .textFieldStyle(.roundedBorder)
+                                        .focused($urlFieldFocused)
+                                        .onChange(of: kotURLText) { newValue in
+                                            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
+                                            SettingsWindowController.shared.setCurrentURLString(trimmed)
+                                            if urlValidationMessage == nil && !trimmed.isEmpty {
+                                                settings.kotBaseURL = trimmed
+                                                settings.save()
+                                            }
+                                        }
+                                    if let msg = urlValidationMessage {
+                                        Text(msg)
+                                            .font(.caption)
+                                            .foregroundStyle(.red)
                                     }
                                 }
-                            )) {
-                                Text(L10n.string("settings.launch_at_login"))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("urlSection")
 
-                            Text(L10n.string("settings.launch_at_login_help"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Picker(L10n.string("settings.log_level"), selection: Binding(
-                                get: { settings.logLevel },
-                                set: { newValue in
-                                    settings.logLevel = newValue
-                                    settings.save()
+                            GroupBox(L10n.string("settings.node")) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(L10n.string("settings.node_path"))
+                                        .font(.subheadline)
+                                    TextField(L10n.string("settings.node_path"), text: $nodePathText)
+                                        .textFieldStyle(.roundedBorder)
+                                        .focused($nodePathFieldFocused)
+                                        .onChange(of: nodePathText) { newValue in
+                                            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            settings.nodePath = trimmed
+                                            settings.save()
+                                            _ = AutomationInvoker.shared.performStartupNodeCheck()
+                                        }
                                 }
-                            )) {
-                                ForEach(LogLevel.allCases) { level in
-                                    Text(L10n.string("settings.log_level.\(level.rawValue)")).tag(level)
-                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("nodePathSection")
 
-                            Text(L10n.string("settings.log_level_help"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            GroupBox(L10n.string("settings.diagnostics")) {
+                                Picker(L10n.string("settings.log_level"), selection: Binding(
+                                    get: { settings.logLevel },
+                                    set: { newValue in
+                                        settings.logLevel = newValue
+                                        settings.save()
+                                    }
+                                )) {
+                                    ForEach(LogLevel.allCases) { level in
+                                        Text(L10n.string("settings.log_level.\(level.rawValue)")).tag(level)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
+                    .onReceive(NotificationCenter.default.publisher(for: .settingsFocusNodePathField)) { _ in
+                        nodePathFieldFocused = true
+                        withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo("nodePathSection") }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: .settingsFocusCredentialsField)) { _ in
+                        credentialsUsernameFocused = true
+                        withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo("credentialsSection") }
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
             }
 
             Divider()
@@ -279,18 +251,11 @@ struct SettingsView: View {
                 Spacer()
                 Button(L10n.string("settings.close")) {
                     AppLogger.info("User: Settings Close tapped")
-                    let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    AppLogger.verbose("Settings: Close tapped — kotURLText.trimmed=\(trimmed.isEmpty ? "(empty)" : trimmed)")
-                    SettingsWindowController.shared.setCurrentURLString(trimmed)
-                    let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
-                    AppLogger.verbose("Settings: Close — validator result=\(msg ?? "nil"), blocking=\(msg != nil)")
-                    urlValidationMessage = msg
-                    if msg != nil {
-                        AppLogger.verbose("Settings: Close — keeping window open, setting red text and focus")
-                        urlFieldFocused = true
-                        return
+                    if AppEnvironment.isLocal {
+                        let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        SettingsWindowController.shared.setCurrentURLString(trimmed)
+                        urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
                     }
-                    AppLogger.verbose("Settings: Close — valid, closing window (timecard sync runs in windowWillClose if credentials present)")
                     NSApplication.shared.keyWindow?.close()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -300,19 +265,24 @@ struct SettingsView: View {
         }
         .frame(minWidth: 480, minHeight: 380)
         .onAppear {
-            kotURLText = settings.effectiveKotBaseURL
-            let trimmed = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
-            AppLogger.verbose("Settings: onAppear — effectiveURL=\(trimmed.isEmpty ? "(empty)" : trimmed), validationError=\(msg ?? "nil")")
-            urlValidationMessage = msg
-            SettingsWindowController.shared.setCurrentURLString(trimmed)
+            if let creds = CredentialsManager.shared.loadCredentials() {
+                credentialsUsername = creds.username
+            }
+            credentialsPassword = ""
+            SettingsWindowController.shared.setCurrentCredentials(username: credentialsUsername, password: credentialsPassword)
+            if AppEnvironment.isLocal {
+                kotURLText = settings.effectiveKotBaseURL
+                let trimmed = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
+                SettingsWindowController.shared.setCurrentURLString(trimmed)
+                let nodePathSetting = settings.nodePath.trimmingCharacters(in: .whitespacesAndNewlines)
+                nodePathText = nodePathSetting.isEmpty ? (AutomationInvoker.shared.resolvedNodePath ?? "") : nodePathSetting
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .settingsFocusURLField)) { _ in
+            guard AppEnvironment.isLocal else { return }
             let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let msg = AppSettings.kotURLValidationError(trimmed: trimmed)
-            AppLogger.verbose("Settings: onReceive(settingsFocusURLField) — setting red text and focus, msg=\(msg ?? "nil")")
-            urlValidationMessage = msg
-            SettingsWindowController.shared.setValidationError(msg)
+            urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
             urlFieldFocused = true
         }
     }

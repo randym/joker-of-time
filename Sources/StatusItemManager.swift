@@ -291,10 +291,16 @@ final class StatusItemManager: NSObject {
 
         if AppEnvironment.isLocal {
             menu.addItem(NSMenuItem.separator())
-            let simItem = NSMenuItem(title: "Develop: Simulate launch at login", action: #selector(simulateLaunchAtLogin), keyEquivalent: "")
-            simItem.target = self
-            simItem.toolTip = "Run preflight + timecard with alerts suppressed (same as login-item launch). Use to test without restarting."
-            menu.addItem(simItem)
+            let developMenu = NSMenu()
+            for kind in SessionManager.TestAlertKind.allCases {
+                let item = NSMenuItem(title: "Test: \(kind.rawValue)", action: #selector(showTestAlert(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = kind.rawValue
+                developMenu.addItem(item)
+            }
+            let developSub = NSMenuItem(title: "Develop", action: nil, keyEquivalent: "")
+            developSub.submenu = developMenu
+            menu.addItem(developSub)
         }
 
         menu.addItem(NSMenuItem.separator())
@@ -346,9 +352,10 @@ final class StatusItemManager: NSObject {
         SettingsWindowController.shared.show()
     }
 
-    @objc private func simulateLaunchAtLogin() {
-        AppLogger.debug("Develop: simulating launch at login (runTimeCardTask context=startupFromBoot)")
-        runTimeCardTask(context: .startupFromBoot)
+    @objc private func showTestAlert(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let kind = SessionManager.TestAlertKind(rawValue: raw) else { return }
+        SessionManager.shared.showTestAlert(kind)
     }
 
     @objc private func quit() {

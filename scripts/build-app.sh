@@ -45,19 +45,6 @@ cp "$REPO_ROOT/Info.plist" "$CONTENTS/"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$CONTENTS/Info.plist"
 chmod +x "$MACOS/JokerOfTime"
 
-# Login item helper app (launches main app with --launched-at-login when run at login)
-HELPER_BINARY="$REPO_ROOT/.build/release/LoginItemHelper"
-LOGIN_ITEMS="$CONTENTS/Library/LoginItems"
-HELPER_APP="$LOGIN_ITEMS/LoginItemHelper.app"
-if [[ -f "$HELPER_BINARY" ]]; then
-  mkdir -p "$HELPER_APP/Contents/MacOS"
-  cp "$HELPER_BINARY" "$HELPER_APP/Contents/MacOS/LoginItemHelper"
-  chmod +x "$HELPER_APP/Contents/MacOS/LoginItemHelper"
-  cp "$REPO_ROOT/LoginItemHelper/Info.plist" "$HELPER_APP/Contents/Info.plist"
-else
-  echo "Warning: LoginItemHelper binary not found; run 'swift build -c release' to build all targets. Login-at-launch will use main app registration."
-fi
-
 echo -n "$ENV" > "$RESOURCES/environment.txt"
 
 # Localization (.lproj must be in Contents/Resources for NSLocalizedString)
@@ -125,12 +112,8 @@ if [[ -n "$sign_id" ]]; then
       codesign "${CODESIGN_FLAGS[@]}" "$f"
     fi
   done < <(find "$RESOURCES" -type f -print0 2>/dev/null)
-  # Then main executable, then login item helper (if present), then the main bundle
+  # Then main executable, then the main bundle
   codesign "${CODESIGN_FLAGS[@]}" "$MACOS/JokerOfTime"
-  if [[ -d "$LOGIN_ITEMS/LoginItemHelper.app" ]]; then
-    codesign "${CODESIGN_FLAGS[@]}" "$LOGIN_ITEMS/LoginItemHelper.app/Contents/MacOS/LoginItemHelper"
-    codesign "${CODESIGN_FLAGS[@]}" "$LOGIN_ITEMS/LoginItemHelper.app"
-  fi
   codesign "${CODESIGN_FLAGS[@]}" "$APP_NAME"
 else
   echo "Tip: To avoid keychain 'allow access' on first install, sign the app:"

@@ -5,16 +5,19 @@ struct StopWorkPromptView: View {
     let title: String
     let message: String
     let isCritical: Bool
+    let isOverLimit: Bool
     let dismiss: () -> Void
     let onYes: () -> Void
     let onNo: () -> Void
+
+    private var iconColor: Color { isOverLimit ? .red : (isCritical ? .orange : .red) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: isCritical ? "clock.badge.questionmark" : "exclamationmark.triangle.fill")
                     .font(.system(size: 36, weight: .medium))
-                    .foregroundStyle(isCritical ? Color.orange : Color.red)
+                    .foregroundStyle(iconColor)
                     .symbolRenderingMode(.hierarchical)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -79,10 +82,12 @@ enum StopWorkPromptPresenter {
     }
 
     /// Present the Stop Work dialog. Callbacks run on main; dismiss closes the panel.
+    /// isOverLimit: when true (overtime), icon is red; when false and isCritical (met limit), icon is orange.
     static func present(
         title: String,
         message: String,
         isCritical: Bool,
+        isOverLimit: Bool = false,
         onYes: @escaping () -> Void,
         onNo: @escaping () -> Void
     ) {
@@ -107,6 +112,7 @@ enum StopWorkPromptPresenter {
             title: title,
             message: message,
             isCritical: isCritical,
+            isOverLimit: isOverLimit,
             dismiss: dismiss,
             onYes: onYes,
             onNo: onNo

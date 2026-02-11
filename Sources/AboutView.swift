@@ -86,6 +86,12 @@ struct AboutView: View {
                 }
                 .padding(.top, 10)
 
+                Text(L10n.string("about.disclaimer"))
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 14)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Spacer(minLength: 12)
 
                 HStack {

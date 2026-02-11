@@ -113,8 +113,8 @@ final class SessionManager: ObservableObject {
                     self.pendingStartPromptAfterPreflight = false
                     if self.isNodeNotResolved(err) {
                         self.showNodeNotFoundAlert()
-                    } else if msg.contains(AutomationInvoker.loginFailedMessage) {
-                        self.showLoginFailedAlert()
+                    } else if msg.contains(AutomationInvoker.loginFailedMessage) || msg.contains(AutomationInvoker.badCredentialsMessage) || msg.contains(AutomationInvoker.loginTimeoutMessage) {
+                        self.showLoginFailedAlert(output: msg)
                     } else if msg.contains(AutomationInvoker.networkErrorMessage) || msg.lowercased().contains("timeout") {
                         self.showNetworkErrorAlert()
                     } else {
@@ -232,8 +232,8 @@ final class SessionManager: ObservableObject {
                         self.showNodeNotFoundAlert()
                     } else if output.contains(AutomationInvoker.alreadyClockedInMessage) {
                         self.showAlreadyClockedInAlert()
-                    } else if output.contains(AutomationInvoker.loginFailedMessage) {
-                        self.showLoginFailedAlert()
+                    } else if output.contains(AutomationInvoker.loginFailedMessage) || output.contains(AutomationInvoker.badCredentialsMessage) || output.contains(AutomationInvoker.loginTimeoutMessage) {
+                        self.showLoginFailedAlert(output: output)
                     } else if output.contains(AutomationInvoker.networkErrorMessage) || output.lowercased().contains("timeout") {
                         self.showNetworkErrorAlert()
                     } else {
@@ -260,8 +260,8 @@ final class SessionManager: ObservableObject {
                             self.showNodeNotFoundAlert()
                         } else if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
                             self.showGuardClockOutAlert(output: output)
-                        } else if output.contains(AutomationInvoker.loginFailedMessage) {
-                            self.showLoginFailedAlert()
+                        } else if output.contains(AutomationInvoker.loginFailedMessage) || output.contains(AutomationInvoker.badCredentialsMessage) || output.contains(AutomationInvoker.loginTimeoutMessage) {
+                            self.showLoginFailedAlert(output: output)
                         } else if output.contains(AutomationInvoker.networkErrorMessage) || output.lowercased().contains("timeout") {
                             self.showNetworkErrorAlert()
                         } else {
@@ -300,60 +300,49 @@ final class SessionManager: ObservableObject {
     }
 
     private func showAlreadyClockedInAlert() {
-        let alert = NSAlert()
-        alert.messageText = L10n.string("alert.already_clocked_in.title")
-        alert.informativeText = L10n.string("alert.already_clocked_in.message")
-        alert.alertStyle = .informational
-        if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "info.circle.fill", accessibilityDescription: nil)
-        }
-        alert.addButton(withTitle: L10n.string("alert.ok"))
-        alert.window.level = .statusBar
-        alert.window.makeKeyAndOrderFront(nil)
-        alert.window.center()
-        alert.runModal()
+        AlreadyClockedInPromptPresenter.present(onDismiss: {})
     }
 
     private func showGuardClockOutAlert(output: String) {
-        let alert = NSAlert()
-        alert.messageText = L10n.string("alert.cannot_clock_out.title")
-        if output.contains(AutomationInvoker.notClockedInMessage) {
-            alert.informativeText = L10n.string("alert.cannot_clock_out.not_clocked_in")
-        } else {
-            alert.informativeText = L10n.string("alert.cannot_clock_out.already_clocked_out")
-        }
-        alert.alertStyle = .informational
-        if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "info.circle.fill", accessibilityDescription: nil)
-        }
-        alert.addButton(withTitle: L10n.string("alert.ok"))
-        alert.window.level = .statusBar
-        alert.window.makeKeyAndOrderFront(nil)
-        alert.window.center()
-        alert.runModal()
+        let message = output.contains(AutomationInvoker.notClockedInMessage)
+            ? L10n.string("alert.cannot_clock_out.not_clocked_in")
+            : L10n.string("alert.cannot_clock_out.already_clocked_out")
+        CannotClockOutPromptPresenter.present(message: message, onDismiss: {})
     }
 
-    func showLoginFailedAlert() {
-        showTimecardFailureAlert(
-            title: L10n.string("alert.login_failed.title"),
-            message: L10n.string("alert.login_failed.message")
-        )
+    private func loginFailedMessage(from output: String) -> String {
+        if output.contains(AutomationInvoker.badCredentialsMessage) {
+            return L10n.string("alert.login_failed.bad_credentials")
+        }
+        if output.contains(AutomationInvoker.loginTimeoutMessage) {
+            return L10n.string("alert.login_failed.timeout")
+        }
+        return L10n.string("alert.login_failed.message")
+    }
+
+    func showLoginFailedAlert(output: String = "") {
+        let message = loginFailedMessage(from: output)
+        LoginFailedPromptPresenter.present(message: message, onDismiss: {
+            SettingsWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NotificationCenter.default.post(name: .settingsFocusCredentialsField, object: nil)
+            }
+        })
     }
 
     /// Offline (no internet): own dialog; dismiss does NOT open Settings — user can't fix connectivity there.
     func showNetworkOfflineAlert() {
-        showAlertOnly(
-            title: L10n.string("alert.network_offline.title"),
-            message: L10n.string("alert.network_offline.message")
-        )
+        NetworkOfflinePromptPresenter.present()
     }
 
-    /// Site unreachable (bad URL, host down, etc.): own dialog; dismiss opens Settings and focuses URL.
+    /// Site unreachable (bad URL, host down, etc.): prompt; dismiss opens Settings and focuses URL.
     func showCannotReachSiteAlert() {
-        showTimecardFailureAlert(
-            title: L10n.string("alert.cannot_reach_site.title"),
-            message: L10n.string("alert.cannot_reach_site.message")
-        )
+        CannotReachSitePromptPresenter.present(onDismiss: {
+            SettingsWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
+            }
+        })
     }
 
     /// Route to offline vs cannot-reach-site dialog based on connectivity; only one opens Settings on dismiss.
@@ -376,23 +365,99 @@ final class SessionManager: ObservableObject {
     }
 
     func showNodeNotFoundAlert() {
-        showTimecardFailureAlert(
-            title: L10n.string("alert.node_not_found.title"),
-            message: L10n.string("alert.node_not_found.message")
+        NodeNotFoundPromptPresenter.present(onDismiss: {})
+    }
+
+    // MARK: - Local-only test alerts
+
+    /// Kinds of alerts that can be shown from the Develop menu for testing. Only honored when `AppEnvironment.isLocal`.
+    enum TestAlertKind: String, CaseIterable {
+        case networkOffline
+        case cannotReachSite
+        case nodeNotFound
+        case loginFailed
+        case somethingWrong
+        case alreadyClockedIn
+        case guardClockOutNotClockedIn
+        case guardClockOutAlreadyClockedOut
+        case startWorkPrompt
+        /// Clock-out dialog when under planned hours (e.g. "Clock out now? … about 1h 0m remaining").
+        case stopWorkEarlyPrompt
+        /// Clock-out dialog when workday time is just met ("You have reached your planned work limit").
+        case stopWorkMetLimitPrompt
+        /// Clock-out dialog when over planned hours / 15 min nag ("You are 0h 15m over...").
+        case stopWorkOverLimitPrompt
+    }
+
+    /// Show a specific alert for testing. No-op when not in local environment.
+    func showTestAlert(_ kind: TestAlertKind) {
+        guard AppEnvironment.isLocal else { return }
+        switch kind {
+        case .networkOffline: showNetworkOfflineAlert()
+        case .cannotReachSite: showCannotReachSiteAlert()
+        case .nodeNotFound: showNodeNotFoundAlert()
+        case .loginFailed: showLoginFailedAlert()
+        case .somethingWrong: showTimecardFetchFailedAlert(reason: "Test")
+        case .alreadyClockedIn: showAlreadyClockedInAlert()
+        case .guardClockOutNotClockedIn: showGuardClockOutAlert(output: AutomationInvoker.notClockedInMessage)
+        case .guardClockOutAlreadyClockedOut: showGuardClockOutAlert(output: AutomationInvoker.alreadyClockedOutMessage)
+        case .startWorkPrompt: showStartWorkPrompt()
+        case .stopWorkEarlyPrompt: showTestStopWorkPrompt(variant: .early)
+        case .stopWorkMetLimitPrompt: showTestStopWorkPrompt(variant: .metLimit)
+        case .stopWorkOverLimitPrompt: showTestStopWorkPrompt(variant: .overLimit)
+        }
+    }
+
+    /// Local-only: present the Stop Work dialog (same component as real flow) with sample text for testing.
+    private enum StopWorkTestVariant {
+        case early      // Before work day done (under planned hours)
+        case metLimit  // When workday time is met
+        case overLimit // Overtime / 15 min nag after exceeding
+    }
+
+    private func showTestStopWorkPrompt(variant: StopWorkTestVariant) {
+        guard AppEnvironment.isLocal else { return }
+        let title: String
+        let message: String
+        let isCritical: Bool
+        switch variant {
+        case .early:
+            title = L10n.string("stop_work.early.title")
+            message = L10n.string("stop_work.early.message", 1, 0)
+            isCritical = false
+        case .metLimit:
+            title = L10n.string("stop_work.critical.title")
+            message = L10n.string("stop_work.critical.message")
+            isCritical = true
+        case .overLimit:
+            title = L10n.string("stop_work.critical.title")
+            message = L10n.string("stop_work.over.message", 0, 15)
+            isCritical = true
+        }
+        let isOverLimit = (variant == .overLimit)
+        StopWorkPromptPresenter.present(
+            title: title,
+            message: message,
+            isCritical: isCritical,
+            isOverLimit: isOverLimit,
+            onYes: {},
+            onNo: {}
         )
     }
 
+    private func showSomethingWentWrongAlert() {
+        SomethingWentWrongPromptPresenter.present(onDismiss: {})
+    }
+
     private func showTimecardFetchFailedAlert(reason: String) {
-        showTimecardFailureAlert(
-            title: L10n.string("alert.something_wrong.title"),
-            message: L10n.string("alert.something_wrong.message")
-        )
+        showSomethingWentWrongAlert()
     }
 
     /// Show alert only; no Settings on dismiss (e.g. network offline — user can't fix that in Settings).
     private func showAlertOnly(title: String, message: String) {
         let alert = NSAlert()
-        alert.messageText = title
+        let appName = L10n.string("window.title")
+        alert.messageText = "\(appName) — \(title)"
         alert.informativeText = message
         alert.alertStyle = .warning
         if #available(macOS 11.0, *) {
@@ -403,17 +468,6 @@ final class SessionManager: ObservableObject {
         alert.window.makeKeyAndOrderFront(nil)
         alert.window.center()
         alert.runModal()
-    }
-
-    /// Show alert for timecard/site failure; on dismiss open Settings and focus URL so user can fix URL/credentials.
-    func showTimecardFailureAlert(title: String, message: String) {
-        showAlertOnly(title: title, message: message)
-        DispatchQueue.main.async {
-            SettingsWindowController.shared.show()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
-            }
-        }
     }
 
     private func showStartWorkPrompt() {
@@ -439,8 +493,8 @@ final class SessionManager: ObservableObject {
                                 self.showNodeNotFoundAlert()
                             } else if output.contains(AutomationInvoker.alreadyClockedInMessage) {
                                 self.showAlreadyClockedInAlert()
-                            } else if output.contains(AutomationInvoker.loginFailedMessage) {
-                                self.showLoginFailedAlert()
+                            } else if output.contains(AutomationInvoker.loginFailedMessage) || output.contains(AutomationInvoker.badCredentialsMessage) || output.contains(AutomationInvoker.loginTimeoutMessage) {
+                                self.showLoginFailedAlert(output: output)
                             } else if output.contains(AutomationInvoker.networkErrorMessage) || output.lowercased().contains("timeout") {
                                 self.showNetworkErrorAlert()
                             } else {
@@ -496,8 +550,8 @@ final class SessionManager: ObservableObject {
                 DispatchQueue.main.async {
                     if self.isNodeNotResolved(err) {
                         self.showNodeNotFoundAlert()
-                    } else if msg.contains(AutomationInvoker.loginFailedMessage) {
-                        self.showLoginFailedAlert()
+                    } else if msg.contains(AutomationInvoker.loginFailedMessage) || msg.contains(AutomationInvoker.badCredentialsMessage) || msg.contains(AutomationInvoker.loginTimeoutMessage) {
+                        self.showLoginFailedAlert(output: msg)
                     } else if msg.contains(AutomationInvoker.networkErrorMessage) || msg.lowercased().contains("timeout") {
                         self.showNetworkErrorAlert()
                     } else {
@@ -534,12 +588,14 @@ final class SessionManager: ObservableObject {
 
     private func showStopWorkPromptAfterSync(force: Bool) {
         let nineHours: TimeInterval = AppSettings.shared.workDuration
-        let hasMetNineHours: Bool
+        var hasMetNineHours = false
+        var isOverLimit = false
         let title: String
         let message: String
         if let clockIn = clockInTime {
             let elapsed = Date().timeIntervalSince(clockIn)
             hasMetNineHours = elapsed >= nineHours
+            isOverLimit = hasMetNineHours && (elapsed - nineHours) > 0
             if hasMetNineHours {
                 title = L10n.string("stop_work.critical.title")
                 let over = max(0, elapsed - nineHours)
@@ -554,7 +610,6 @@ final class SessionManager: ObservableObject {
                 message = L10n.string("stop_work.early.message", hours, minutes)
             }
         } else {
-            hasMetNineHours = false
             title = L10n.string("stop_work.confirm.title")
             message = L10n.string("stop_work.confirm.message")
         }
@@ -563,6 +618,7 @@ final class SessionManager: ObservableObject {
             title: title,
             message: message,
             isCritical: hasMetNineHours,
+            isOverLimit: isOverLimit,
             onYes: { [weak self] in
                 AppLogger.info("User: Stop Work — Yes, clock out")
                 StatusItemManager.lastModalDismissTime = Date()
@@ -579,8 +635,8 @@ final class SessionManager: ObservableObject {
                                 self.showNodeNotFoundAlert()
                             } else if output.contains(AutomationInvoker.notClockedInMessage) || output.contains(AutomationInvoker.alreadyClockedOutMessage) {
                                 self.showGuardClockOutAlert(output: output)
-                            } else if output.contains(AutomationInvoker.loginFailedMessage) {
-                                self.showLoginFailedAlert()
+                            } else if output.contains(AutomationInvoker.loginFailedMessage) || output.contains(AutomationInvoker.badCredentialsMessage) || output.contains(AutomationInvoker.loginTimeoutMessage) {
+                                self.showLoginFailedAlert(output: output)
                             } else if output.contains(AutomationInvoker.networkErrorMessage) || output.lowercased().contains("timeout") {
                                 self.showNetworkErrorAlert()
                             } else {
@@ -747,8 +803,9 @@ final class SessionManager: ObservableObject {
         AppLogger.info("Session: clocked out, done for the day")
     }
 
-    /// Call when credentials were just saved (new or updated). Clears session state so the next time card fetch uses the new credentials as source of truth.
+    /// Call when credentials were just saved (new or updated). Clears session state and stops the automation daemon so the next run uses a fresh daemon with the new account.
     func clearSessionStateForNewCredentials() {
+        AutomationInvoker.shared.stopDaemon()
         objectWillChange.send()
         pendingStartPromptAfterPreflight = true
         isWorking = false
@@ -760,11 +817,12 @@ final class SessionManager: ObservableObject {
         stopTimer?.invalidate()
         nagTimer?.invalidate()
         UserDefaults.standard.removeObject(forKey: Self.dontAskAgainKey)
-        AppLogger.info("Session: credentials changed — state cleared, will re-fetch time card")
+        AppLogger.info("Session: credentials changed — state cleared, daemon stopped, will re-fetch time card")
     }
 
-    /// Call when credentials are cleared: clear all session state, close any clock-in/clock-out prompts. No automation runs.
+    /// Call when credentials are cleared: stop daemon, clear all session state, close any clock-in/clock-out prompts. No automation runs.
     func onCredentialsCleared() {
+        AutomationInvoker.shared.stopDaemon()
         objectWillChange.send()
         pendingStartPromptAfterPreflight = false
         isWorking = false
@@ -778,7 +836,7 @@ final class SessionManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.dontAskAgainKey)
         StartWorkPromptPresenter.closeIfOpen()
         StopWorkPromptPresenter.closeIfOpen()
-        AppLogger.info("Session: credentials cleared — state reset, prompts closed")
+        AppLogger.info("Session: credentials cleared — daemon stopped, state reset, prompts closed")
     }
 
 }

@@ -3,7 +3,7 @@ import Foundation
 /// Site reachability (base URL / host issues) — only when network is up.
 struct SiteReachabilityPreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.cannot_reach_site"
-    static let failureIconName = "link.circle"
+    static let failureIconName = "mappin.slash.circle"
 
     func execute(context: PreflightContext) -> PreflightResult {
         guard context.networkConnected, context.hasCredentials else {

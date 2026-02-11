@@ -24,10 +24,12 @@ final class AutomationInvoker {
     static let alreadyClockedOutMessage = "ALREADY_CLOCKED_OUT"
     static let notClockedInMessage = "NOT_CLOCKED_IN"
     static let loginFailedMessage = "LOGIN_FAILED"
+    static let badCredentialsMessage = "BAD_CREDENTIALS"
+    static let loginTimeoutMessage = "LOGIN_TIMEOUT"
     static let networkErrorMessage = "NETWORK_ERROR"
 
-    /// Full path to node binary, resolved once at startup via login shell so asdf/nvm work. We run this path directly so the clock command doesn't depend on PATH.
-    private var resolvedNodePath: String?
+    /// Full path to node binary, resolved at startup or from AppSettings.nodePath. We run this path directly so the clock command doesn't depend on PATH.
+    private(set) var resolvedNodePath: String?
     /// Node version string from startup check (e.g. "v22.11.0"); nil if not resolved or not found.
     private var resolvedNodeVersion: String?
 
@@ -47,12 +49,29 @@ final class AutomationInvoker {
 
     private init() {}
 
+    /// Stop the daemon so the next automation run starts a fresh one (e.g. after credentials change — the old daemon may still be logged in). Call from main or any thread.
+    func stopDaemon() {
+        daemonQueue.sync {
+            daemonProcess?.terminate()
+            daemonStderrHandle?.readabilityHandler = nil
+            daemonStdinHandle?.closeFile()
+            daemonStdoutHandle?.closeFile()
+            daemonStderrHandle?.closeFile()
+            daemonProcess = nil
+            daemonStdinHandle = nil
+            daemonStdoutHandle = nil
+            daemonStderrHandle = nil
+            AppLogger.info("Automation: daemon stopped (e.g. credentials changed)")
+        }
+    }
+
     /// Start the Node daemon (one browser) if not already running. Call on daemonQueue. Returns true if daemon is ready.
     private func ensureDaemonRunning(automationDir: URL, cliURL: URL, nodePath: String) -> Bool {
         if let proc = daemonProcess, proc.isRunning {
             return true
         }
         daemonProcess?.terminate()
+        daemonStderrHandle?.readabilityHandler = nil
         daemonStdinHandle?.closeFile()
         daemonStdoutHandle?.closeFile()
         daemonStderrHandle?.closeFile()
@@ -91,31 +110,35 @@ final class AutomationInvoker {
         }
     }
 
-    /// Read daemon stderr on a background queue and log each line with Automation: prefix.
+    /// Read daemon stderr via readabilityHandler to avoid availableData timeout crash. Log each line with Automation: prefix.
     private func forwardDaemonStderrToLog(process: Process, stderr: FileHandle) {
-        DispatchQueue.global(qos: .utility).async {
-            var buffer = ""
-            while true {
-                let data = stderr.availableData
-                if data.isEmpty {
-                    if !process.isRunning { break }
-                    Thread.sleep(forTimeInterval: 0.05)
-                    continue
+        var buffer = ""
+        stderr.readabilityHandler = { [weak process] handle in
+            guard process?.isRunning ?? true else {
+                handle.readabilityHandler = nil
+                if !buffer.trimmingCharacters(in: .whitespaces).isEmpty {
+                    AppLogger.verbose("Automation: \(buffer)")
                 }
-                if let chunk = String(data: data, encoding: .utf8) {
-                    buffer += chunk
-                    if buffer.contains("\n") {
-                        let lines = buffer.split(separator: "\n", omittingEmptySubsequences: false)
-                        let complete = lines.dropLast()
-                        buffer = lines.last.map(String.init) ?? ""
-                        for line in complete {
-                            AppLogger.verbose("Automation: \(line)")
-                        }
+                return
+            }
+            let data = handle.readData(ofLength: 4096)
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                if !buffer.trimmingCharacters(in: .whitespaces).isEmpty {
+                    AppLogger.verbose("Automation: \(buffer)")
+                }
+                return
+            }
+            if let chunk = String(data: data, encoding: .utf8) {
+                buffer += chunk
+                if buffer.contains("\n") {
+                    let lines = buffer.split(separator: "\n", omittingEmptySubsequences: false)
+                    let complete = lines.dropLast()
+                    buffer = lines.last.map(String.init) ?? ""
+                    for line in complete {
+                        AppLogger.verbose("Automation: \(line)")
                     }
                 }
-            }
-            if !buffer.trimmingCharacters(in: .whitespaces).isEmpty {
-                AppLogger.verbose("Automation: \(buffer)")
             }
         }
     }
@@ -410,9 +433,22 @@ final class AutomationInvoker {
         }
     }
 
-    /// Run at startup: prefer Homebrew node (real binary); fall back to shell's which node. Log path and version, store path for clock commands.
+    /// Run at startup or when user changes node path: if AppSettings.nodePath is set we use only that path (fail if not usable); otherwise try Homebrew then shell which node.
     func performStartupNodeCheck() -> Bool {
         let fm = FileManager.default
+        let userPath = AppSettings.shared.nodePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !userPath.isEmpty {
+            if fm.isExecutableFile(atPath: userPath), let version = runNodeVersion(at: userPath) {
+                resolvedNodePath = userPath
+                resolvedNodeVersion = version
+                AppLogger.debug("Automation: startup: node path (user)=\(userPath) version=\(version)")
+                return true
+            }
+            resolvedNodePath = nil
+            resolvedNodeVersion = nil
+            AppLogger.debug("Automation: startup: user node path not usable: \(userPath)")
+            return false
+        }
         let homebrewPaths = ["/opt/homebrew/bin/node", "/usr/local/bin/node"]
         for path in homebrewPaths {
             if fm.isExecutableFile(atPath: path) {

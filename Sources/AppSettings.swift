@@ -36,6 +36,8 @@ final class AppSettings: ObservableObject {
     @Published var runOnLogin: Bool
     /// Minimum log level to emit. Default: none in production, verbose in local.
     @Published var logLevel: LogLevel
+    /// User-set path to Node.js binary; when non-empty we use this instead of auto-resolving. Empty = use resolved path (Homebrew / which node).
+    @Published var nodePath: String
 
     private static let defaultsKeyProduction = "JokerOfTimeSettings"
     private static let defaultsKeyDev = "JokerOfTimeSettings.Dev"
@@ -49,6 +51,7 @@ final class AppSettings: ObservableObject {
             kotBaseURL = stored["kotBaseURL"] as? String ?? ""
             workdayHours = stored["workdayHours"] as? Double ?? 9
             runOnLogin = stored["runOnLogin"] as? Bool ?? true
+            nodePath = stored["nodePath"] as? String ?? ""
             if let raw = stored["logLevel"] as? String, let level = LogLevel(rawValue: raw) {
                 logLevel = level
             } else if let enabled = stored["loggingEnabled"] as? Bool {
@@ -60,6 +63,7 @@ final class AppSettings: ObservableObject {
             kotBaseURL = ""
             workdayHours = 9
             runOnLogin = true
+            nodePath = ""
             logLevel = defaultLogLevel
         }
     }
@@ -69,6 +73,7 @@ final class AppSettings: ObservableObject {
             "kotBaseURL": kotBaseURL,
             "workdayHours": workdayHours,
             "runOnLogin": runOnLogin,
+            "nodePath": nodePath,
             "logLevel": logLevel.rawValue
         ]
         UserDefaults.standard.set(payload, forKey: Self.defaultsKey)

@@ -18,6 +18,10 @@ extension Notification.Name {
     static let sessionStateDidChange = Notification.Name("SessionStateDidChange")
     /// Post when Settings window close is blocked by invalid URL; view should focus URL field and show inline error.
     static let settingsFocusURLField = Notification.Name("SettingsFocusURLField")
+    /// Post when Settings should open and focus the Node path field (e.g. after dismissing Node not found prompt).
+    static let settingsFocusNodePathField = Notification.Name("SettingsFocusNodePathField")
+    /// Post when Settings should open and focus the credentials username field (e.g. after dismissing Login failed prompt).
+    static let settingsFocusCredentialsField = Notification.Name("SettingsFocusCredentialsField")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -32,8 +36,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        AppLogger.debug("Launch: applicationWillFinishLaunching entered")
+        let args = ProcessInfo.processInfo.arguments.joined(separator: " ")
+        let envKeys = Array(ProcessInfo.processInfo.environment.keys).sorted().joined(separator: ",")
+        AppLogger.debug("Launch: args=\(args)")
+        AppLogger.debug("Launch: envKeys=\(envKeys)")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppLogger.debug("Launch: applicationDidFinishLaunching entered")
+        AppLogger.debug("Launch: window snapshot at didFinish: count=\(NSApp.windows.count)")
+        for window in NSApp.windows {
+            AppLogger.debug("Launch: window title=\"\(window.title)\" isVisible=\(window.isVisible)")
+        }
 
         // Single instance: if another JokerOfTime is already running, activate it and quit this launch.
         let bundleId = Bundle.main.bundleIdentifier ?? "io.github.randym.JokerOfTime"
@@ -78,12 +94,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
                 }
             } else {
-                AppLogger.info("Launch: has credentials + valid URL → checking isLaunchedAtLogin")
-                let launchedAtLogin = isLaunchedAtLogin()
-                let context: PreflightUIContext = launchedAtLogin ? .startupFromBoot : .startup
-                let alertBehavior = (context == .startupFromBoot) ? "alerts suppressed on preflight failure" : "alerts shown on preflight failure"
-                AppLogger.info("Launch: isLaunchedAtLogin=\(launchedAtLogin) → context=\(context) → \(alertBehavior)")
-                runTimeCardTask(context: context)
+                AppLogger.info("Launch: has credentials + valid URL → running time card task with backoff")
+                runTimeCardTask(context: .startup)
             }
         }
 
@@ -144,6 +156,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func application(_ application: NSApplication, shouldSaveApplicationState coder: NSCoder) -> Bool {
+        AppLogger.info("Launch: application(_:shouldSaveApplicationState:)")
+        return true
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        AppLogger.info("Launch: applicationShouldHandleReopen hasVisibleWindows=\(flag)")
+        return true
+    }
+
+    func applicationWillBecomeActive(_ notification: Notification) {
+        AppLogger.info("Launch: applicationWillBecomeActive")
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        AppLogger.info("Launch: applicationDidBecomeActive")
+    }
+
     private func logLocale() {
         guard AppEnvironment.isLocal else { return }
         let bundle = Bundle.main
@@ -168,32 +198,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// True when the LoginItemHelper launched us with --launched-at-login (run at login). Used to suppress preflight failure alerts at boot when the network may not be up yet.
-private func isLaunchedAtLogin() -> Bool {
-    let result = ProcessInfo.processInfo.arguments.contains("--launched-at-login")
-    if result {
-        AppLogger.info("Launch: detected --launched-at-login argument → isLaunchedAtLogin=true")
-    }
-    return result
-}
-
 /// Log in (if needed), fetch and parse time card, update state, and show start-work prompt if appropriate. Call only when credentials exist.
 func runTimeCardTask(context: PreflightUIContext = .startup) {
-    AppLogger.info("runTimeCardTask: context=\(context)")
-    let outcome = PreflightRunner.runPreflightOutcome()
-    guard outcome.success else {
-        if let f = outcome.failure {
-            PreflightUIHandler.handleFailure(f, context: context)
+    AppLogger.info("runTimeCardTask: context=\(context) (with backoff)")
+    BackoffRetryRunner.run(command: StartupCommand(context: context)) { result in
+        if case .failure(let error) = result, let preflightErr = error as? PreflightFailureError {
+            PreflightUIHandler.handleFailure(preflightErr.failure, context: context)
         }
-        return
     }
-    AutomationInvoker.shared.runAppStartLog()
-    SessionManager.shared.handleLaunch()
 }
 
 /// Wraps `PreflightFailure` so it can be returned from `RetryableCommand.execute()` and passed to the retry completion.
 struct PreflightFailureError: Error {
     let failure: PreflightFailure
+}
+
+/// Command for startup/manual contexts: run preflight with backoff then (on success) run automation + session handling.
+struct StartupCommand: RetryableCommand {
+    let context: PreflightUIContext
+
+    func execute() -> Result<Void, Error> {
+        let outcome = PreflightRunner.runPreflightOutcome()
+        guard outcome.success else {
+            if let f = outcome.failure {
+                return .failure(PreflightFailureError(failure: f))
+            }
+            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown)))
+        }
+        AppLogger.info("runTimeCardTask: context=\(context)")
+        AutomationInvoker.shared.runAppStartLog()
+        SessionManager.shared.handleLaunch()
+        return .success(())
+    }
 }
 
 /// Command for autoResync: run preflight then (on success) run automation + session handling. Conforms to `RetryableCommand` for backoff retry.

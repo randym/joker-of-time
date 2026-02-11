@@ -6,23 +6,24 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     static let shared = SettingsWindowController()
     private var window: NSWindow?
 
-    /// When non-nil, the Settings window must not close (URL invalid or HTTP in production). Updated by SettingsView.
-    private(set) var validationError: String?
-
-    /// Current URL field content (trimmed). Updated by SettingsView so we can validate on window close even if view state is stale.
+    /// Current URL field content (trimmed). Updated by SettingsView.
     private(set) var currentURLString: String = ""
+
+    /// Current credentials field content. Updated by SettingsView so we can save on close only when changed.
+    private(set) var currentCredentialsUsername: String = ""
+    private(set) var currentCredentialsPassword: String = ""
 
     private override init() {
         super.init()
     }
 
-    func setValidationError(_ message: String?) {
-        validationError = message
-    }
-
     func setCurrentURLString(_ trimmed: String) {
         currentURLString = trimmed
-        validationError = AppSettings.kotURLValidationError(trimmed: trimmed)
+    }
+
+    func setCurrentCredentials(username: String, password: String) {
+        currentCredentialsUsername = username
+        currentCredentialsPassword = password
     }
 
     func show() {
@@ -49,7 +50,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let effective = AppSettings.shared.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         setCurrentURLString(effective)
-        AppLogger.info("Settings: show() — synced currentURLString=\(effective.isEmpty ? "(empty)" : effective), validationError=\(validationError != nil ? "set" : "nil")")
+        AppLogger.info("Settings: show() — synced currentURLString=\(effective.isEmpty ? "(empty)" : effective)")
 
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -57,30 +58,33 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        let trimmed = currentURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        let err = AppSettings.kotURLValidationError(trimmed: trimmed)
-        AppLogger.verbose("Settings: windowShouldClose — currentURLString=\(trimmed.isEmpty ? "(empty)" : trimmed), validator err=\(err ?? "nil"), allowingClose=\(err == nil)")
-        guard err == nil else {
-            validationError = err
-            AppLogger.verbose("Settings: windowShouldClose — blocking close, posting settingsFocusURLField and showing alert")
-            NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
-            showValidationAlert()
-            // After user dismisses alert: next run loop so modal is fully gone, then open Settings and focus URL.
-            DispatchQueue.main.async { [weak self] in
-                self?.show()
-                NotificationCenter.default.post(name: .settingsFocusURLField, object: nil)
-            }
-            return false
-        }
         return true
     }
 
-    /// When Settings closes with valid URL and credentials, sync timecard so icon and preflight return to normal.
+    /// When Settings closes, save credentials to keychain if login ID or password changed, stop daemon so next run uses new account, then re-run preflight.
     func windowWillClose(_ notification: Notification) {
-        let trimmed = currentURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard AppSettings.kotURLValidationError(trimmed: trimmed) == nil,
-              CredentialsManager.shared.hasStoredCredentials else { return }
-        AppLogger.info("Settings: window closed with valid URL and credentials, running time card task with backoff retry")
+        let un = currentCredentialsUsername.trimmingCharacters(in: .whitespaces)
+        let pw = currentCredentialsPassword
+        let stored = CredentialsManager.shared.loadCredentials()
+        let usernameChanged = stored?.username != un
+        let passwordEntered = !pw.isEmpty
+        let credentialsChanged = usernameChanged || passwordEntered
+
+        if credentialsChanged {
+            let effectivePassword = pw.isEmpty ? (stored?.password ?? "") : pw
+            if !un.isEmpty || !effectivePassword.isEmpty {
+                if CredentialsManager.shared.saveCredentials(username: un, password: effectivePassword) {
+                    AppLogger.info("Settings: credentials updated on close, stopping daemon and re-running preflight")
+                    SessionManager.shared.clearSessionStateForNewCredentials()
+                }
+            } else {
+                CredentialsManager.shared.clearCredentials()
+                AutomationInvoker.shared.stopDaemon()
+                SessionManager.shared.onCredentialsCleared()
+            }
+        }
+
+        AppLogger.info("Settings: window closed, running time card task with backoff retry")
         runBackgroundResync(source: "settingsClose") { result in
             if case .failure(let error) = result, let preflightErr = error as? PreflightFailureError {
                 PreflightUIHandler.handleFailure(preflightErr.failure, context: .settingsClose)
@@ -88,17 +92,4 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Call when Close is blocked so the user sees why.
-    func showValidationAlert() {
-        let msg = validationError ?? L10n.string("settings.fix_url_to_close")
-        let alert = NSAlert()
-        alert.messageText = L10n.string("settings.cannot_close_invalid.title")
-        alert.informativeText = msg
-        alert.alertStyle = .warning
-        if #available(macOS 11.0, *) {
-            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: L10n.string("alert.error_icon"))
-        }
-        alert.addButton(withTitle: L10n.string("settings.cannot_close_invalid.ok"))
-        alert.runModal()
-    }
 }
