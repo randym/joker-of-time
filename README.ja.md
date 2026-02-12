@@ -125,13 +125,17 @@ Webベースのタイムカードに出勤・退勤を打刻する作業は、
 
 ## メニューバーアイコン
 
-メニューバーのアイコンは3つの状態を表示します。
+メニューバーのアイコンは次の状態を表示します。
 
 | 状態 | アイコン | 意味 |
 |------|----------|------|
-| **待機中** | <img src="docs/screenshots/clock-line.png" alt="Outline clock" width="24"/> | 未出勤。打刻可能な状態 |
-| **勤務中** | <img src="docs/screenshots/clock-fill.png" alt="Filled clock" width="24"/> | 出勤中 |
-| **同期中** | <img src="docs/screenshots/progress.png" alt="Progress indicator" width="24"/> | 自動処理中 |
+| **待機中** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/idle_clocked_out_unknown_dark.png"><img src="docs/icons/idle_clocked_out_unknown_light.png" alt="Outline clock" width="24"/></picture> | 未出勤。打刻可能な状態 |
+| **勤務中** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/working_clocked_in_dark.png"><img src="docs/icons/working_clocked_in_light.png" alt="Filled clock" width="24"/></picture> | 出勤中 |
+| **同期中** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/syncing_fetching_timecard_dark.png"><img src="docs/icons/syncing_fetching_timecard_light.png" alt="Progress indicator" width="24"/></picture> | 自動処理中 |
+| **利用不可（ネットワーク切断）** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_network_offline_dark.png"><img src="docs/icons/not_ready_network_offline_light.png" alt="Wi-Fi error" width="24"/></picture> | Mac がオフラインのため、自動処理を実行しません |
+| **利用不可（Keychain エラー）** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_keychain_error_dark.png"><img src="docs/icons/not_ready_keychain_error_light.png" alt="Keychain error" width="24"/></picture> | Keychain の問題で認証情報を読み書きできません |
+| **利用不可（サイトに接続できない）** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_cannot_reach_site_dark.png"><img src="docs/icons/not_ready_cannot_reach_site_light.png" alt="Site unreachable" width="24"/></picture> | この Mac から King of Time のサイトに接続できません |
+| **利用不可（その他）** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_other_dark.png"><img src="docs/icons/not_ready_other_light.png" alt="Generic not-ready" width="24"/></picture> | ヘルパー未検出などの事前チェック失敗。詳細はアラートを参照してください |
 
 正常に動いていれば、このアプリの存在を忘れるはずです。  
 それが理想の状態です。

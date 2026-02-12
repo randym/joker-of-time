@@ -84,7 +84,7 @@ final class CredentialsManager: ObservableObject {
         precondition(AppEnvironment.isLocal, "Production must never store credentials in UserDefaults")
         UserDefaults.standard.set(username, forKey: Self.devUsernameKey)
         UserDefaults.standard.set(password, forKey: Self.devPasswordKey)
-        AppLogger.info("Credentials: saved to dev store for user \(username)")
+        AppLogger.debug("Credentials: saved to dev store for user \(username)")
     }
 
     private func deleteFromDevStore() {
@@ -154,7 +154,7 @@ final class CredentialsManager: ObservableObject {
         ]
         let status = SecItemAdd(attributes as CFDictionary, nil)
         if status == errSecSuccess {
-            AppLogger.info("Credentials: saved for user \(username)")
+            AppLogger.debug("Credentials: saved for user \(username)")
             return true
         }
         AppLogger.error("Credentials: Keychain save failed (status=\(status))")

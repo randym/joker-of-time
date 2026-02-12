@@ -73,6 +73,14 @@ function isTimeoutError(err: unknown): boolean {
   return /timeout|Timeout|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|network/i.test(msg);
 }
 
+function throwAutomationError(code: string, err: unknown): never {
+  const detail = err instanceof Error ? err.message : String(err);
+  const e = new Error(code);
+  (e as any).automationCode = code;
+  (e as any).automationMessage = detail;
+  throw e;
+}
+
 /** Start at recorder URL; if not already logged in, find login form and submit. Leaves page on recorder. */
 async function ensureLoggedIn(page: Page, username: string, password: string, baseUrl?: string): Promise<void> {
   const kotUrl = getKotUrl(baseUrl);
@@ -81,7 +89,7 @@ async function ensureLoggedIn(page: Page, username: string, password: string, ba
   try {
     await page.goto(kotUrl, { waitUntil: WAIT_UNTIL, timeout: PAGE_LOAD_TIMEOUT_MS });
   } catch (err) {
-    if (isTimeoutError(err)) throw new Error(NETWORK_ERROR);
+    if (isTimeoutError(err)) throwAutomationError(NETWORK_ERROR, err);
     throw err;
   }
   const tGoto = Date.now() - t0;
@@ -91,7 +99,7 @@ async function ensureLoggedIn(page: Page, username: string, password: string, ba
   try {
     landing = await waitForRecorderOrLoginForm(page);
   } catch (err) {
-    if (isTimeoutError(err)) throw new Error(NETWORK_ERROR);
+    if (isTimeoutError(err)) throwAutomationError(NETWORK_ERROR, err);
     throw err;
   }
   const tTarget = Date.now() - t0 - tGoto;
@@ -111,14 +119,23 @@ async function ensureLoggedIn(page: Page, username: string, password: string, ba
   const btn = page.locator(LOGIN_BUTTON_SELECTOR).first();
   log.info("Login submitted");
   const tBeforeRecorder = Date.now();
+  // Dismiss any JS alert (site shows alert on bad credentials) so it doesn't block
+  page.once("dialog", (d) => d.accept());
+  await btn.click();
+  // Wait for recorder UI. Don't race modal_back — it can appear briefly during processing for good creds too.
   try {
-    await Promise.all([
-      page.waitForURL((u) => u.href.includes("recorder"), { timeout: PAGE_LOAD_TIMEOUT_MS }),
-      btn.click(),
-    ]);
+    await page.waitForSelector(RECORDER_SELECTOR, { state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
   } catch (err) {
-    if (isTimeoutError(err)) throw new Error(LOGIN_FAILED);
-    throw err;
+    if (!isTimeoutError(err)) throw err;
+    // Timeout: distinguish bad credentials (login form/modal still visible) vs site timeout
+    const loginFormVisible = await page.locator(LOGIN_USER_SELECTOR).first().isVisible().catch(() => false);
+    const modalVisible = await page.locator("#modal_back, .modal-back").first().isVisible().catch(() => false);
+    if (loginFormVisible || modalVisible) {
+      log.info("Login failed: login form or error modal still visible after timeout — bad credentials");
+      throwAutomationError(BAD_CREDENTIALS, new Error("Invalid username or password"));
+    }
+    log.info("Login failed: recorder did not appear within timeout — site may be slow or unreachable");
+    throwAutomationError(LOGIN_TIMEOUT, new Error("Site did not respond in time. Check your connection."));
   }
   log.info("URL after login:", page.url(), `(${Date.now() - tBeforeRecorder}ms)`);
   log.info("Login succeeded, on recorder", `(ensureLoggedIn ${Date.now() - t0}ms total)`);
@@ -152,7 +169,7 @@ export async function navigateToTimecard(page: Page): Promise<void> {
   log.info("Opening menu (upper right)");
   const menuTrigger = page.locator(RECORDER_MENU_TRIGGER_SELECTOR).first();
   await menuTrigger.waitFor({ state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
-  await menuTrigger.click();
+  await menuTrigger.click({ timeout: PAGE_LOAD_TIMEOUT_MS });
   log.info("Clicking time card link");
   const timecardLink = page.locator(TIMECARD_LINK_SELECTOR).first();
   await timecardLink.waitFor({ state: "visible", timeout: PAGE_LOAD_TIMEOUT_MS });
@@ -162,7 +179,7 @@ export async function navigateToTimecard(page: Page): Promise<void> {
       (u) => u.href.includes("timecard") || u.href.includes("monthly_individual_working_list"),
       { timeout: PAGE_LOAD_TIMEOUT_MS }
     ),
-    timecardLink.click(),
+    timecardLink.click({ timeout: PAGE_LOAD_TIMEOUT_MS }),
   ]);
   await page.waitForLoadState("domcontentloaded", { timeout: PAGE_LOAD_TIMEOUT_MS });
   log.info("Time card URL:", page.url(), `(navigateToTimecard ${Date.now() - t0}ms)`);
@@ -192,6 +209,14 @@ export interface TimecardStatus {
   todayLabel?: string;
 }
 
+/** Time card table column selectors (data-ht-sort-index / class fallbacks). */
+const COL = {
+  date: "td[data-ht-sort-index='WORK_DAY'], td.htBlock-scrollTable_day",
+  workDayType: "td[data-ht-sort-index='WORK_DAY_TYPE'], td.work_day_type",
+  start: "td[data-ht-sort-index='START_TIMERECORD']",
+  end: "td[data-ht-sort-index='END_TIMERECORD']",
+} as const;
+
 /** Parse time card page for today's row. Page must already be on the time card view. */
 export async function getTimecardStatus(page: Page): Promise<TimecardStatus> {
   const t0 = Date.now();
@@ -203,21 +228,19 @@ export async function getTimecardStatus(page: Page): Promise<TimecardStatus> {
   const count = await rows.count();
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const dateCell = row.locator("td[data-ht-sort-index='WORK_DAY'], td.htBlock-scrollTable_day").first();
-    const dateText = (await dateCell.textContent())?.trim() ?? "";
+    const dateText = (await row.locator(COL.date).first().textContent())?.trim() ?? "";
     if (!dateText.includes(todayMMDD)) continue;
-    const workDayTypeCell = row.locator("td[data-ht-sort-index='WORK_DAY_TYPE'], td.work_day_type").first();
-    const workDayType = (await workDayTypeCell.textContent())?.trim() ?? "";
-    const startCell = row.locator("td[data-ht-sort-index='START_TIMERECORD']").first();
-    const startText = (await startCell.textContent())?.trim() ?? "";
-    const endCell = row.locator("td[data-ht-sort-index='END_TIMERECORD']").first();
-    const endText = (await endCell.textContent())?.trim() ?? "";
+    const workDayType = (await row.locator(COL.workDayType).first().textContent())?.trim() ?? "";
+    const startText = (await row.locator(COL.start).first().textContent())?.trim() ?? "";
+    const endText = (await row.locator(COL.end).first().textContent())?.trim() ?? "";
     const clockInTime = extractTimeFromCell(startText);
     const clockOutTime = extractTimeFromCell(endText);
-    // 平日 = working day. 法定休日 (statutory), 法定外休日 (company/non-statutory) = non-working.
-    const isNonWorkingDay =
-      workDayType.includes("法定休日") || workDayType.includes("法定外休日");
-    const shouldWorkToday = workDayType === "平日" && !isNonWorkingDay;
+    // Working day = only 平日 or blank. Full parse of mock-site/reference/kot-timecard-full.html
+    // (all 31 data rows with WORK_DAY_TYPE): only these values appear in that column:
+    //   平日 (working), 法定休日 (non-working), 法定外休日 (non-working).
+    // Blank = future working day or same day before clock-in → treat as working.
+    // Any other value (e.g. flex, 有休) = non-working.
+    const shouldWorkToday = workDayType === "平日" || workDayType === "";
     log.info("Time card parsed", `(getTimecardStatus ${Date.now() - t0}ms)`);
     return {
       shouldWorkToday,
@@ -279,7 +302,7 @@ export async function fetchTimecardStatusWithPage(
     log.info("fetchTimecardStatus done", `(${Date.now() - t0}ms total)`);
     return status;
   } catch (err) {
-    if (isTimeoutError(err)) throw new Error(NETWORK_ERROR);
+    if (isTimeoutError(err)) throwAutomationError(NETWORK_ERROR, err);
     throw err;
   }
 }
@@ -289,6 +312,8 @@ export const ALREADY_CLOCKED_IN = "ALREADY_CLOCKED_IN";
 export const ALREADY_CLOCKED_OUT = "ALREADY_CLOCKED_OUT";
 export const NOT_CLOCKED_IN = "NOT_CLOCKED_IN";
 export const LOGIN_FAILED = "LOGIN_FAILED";
+export const BAD_CREDENTIALS = "BAD_CREDENTIALS";
+export const LOGIN_TIMEOUT = "LOGIN_TIMEOUT";
 export const NETWORK_ERROR = "NETWORK_ERROR";
 
 /** Clock flow: start at recorder, ensure logged in, find and click the clock-in or clock-out button. */

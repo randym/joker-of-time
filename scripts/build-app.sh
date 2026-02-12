@@ -69,10 +69,13 @@ fi
 
 echo "Building helper into Resources..."
 OUT_DIR="$RESOURCES" node scripts/build-dist.js
+
+# Automation files are required; missing = build error (no runtime check in shipped app)
 if [[ ! -f "$RESOURCES/cli.js" ]]; then
-  echo "Helper build failed: cli.js not found in Resources"
+  echo "Build failed: automation files missing — cli.js not found in Resources. Fix the helper build and re-run."
   exit 1
 fi
+
 echo "Injecting env from .env.$ENV into Resources..."
 (cd "$REPO_ROOT" && DIST_DIR="$RESOURCES" node scripts/inject-env.js "$ENV")
 
@@ -80,6 +83,12 @@ cp -R "$REPO_ROOT/node_modules" "$RESOURCES/"
 cat > "$RESOURCES/package.json" << EOF
 {"name":"joker-of-time-helper","version":"$VERSION","main":"cli.js","private":true}
 EOF
+
+# Verify automation files again after copy (automation files missing = build error)
+if [[ ! -f "$RESOURCES/cli.js" || ! -f "$RESOURCES/package.json" || ! -d "$RESOURCES/node_modules" ]]; then
+  echo "Build failed: automation files missing in app bundle. Ensure cli.js, package.json, and node_modules are in Resources."
+  exit 1
+fi
 
 # Optional: code sign so the keychain won't prompt on first install (item is tied to app identity)
 sign_id=""
@@ -103,7 +112,7 @@ if [[ -n "$sign_id" ]]; then
       codesign "${CODESIGN_FLAGS[@]}" "$f"
     fi
   done < <(find "$RESOURCES" -type f -print0 2>/dev/null)
-  # Then main executable, then the bundle
+  # Then main executable, then the main bundle
   codesign "${CODESIGN_FLAGS[@]}" "$MACOS/JokerOfTime"
   codesign "${CODESIGN_FLAGS[@]}" "$APP_NAME"
 else

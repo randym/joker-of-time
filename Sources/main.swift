@@ -13,9 +13,30 @@ struct JokerOfTimeApp: App {
 }
 
 extension Notification.Name {
-    static let closeCredentialsWindow = Notification.Name("CloseCredentialsWindow")
     static let credentialsCleared = Notification.Name("CredentialsCleared")
     static let sessionStateDidChange = Notification.Name("SessionStateDidChange")
+    /// Post when Settings window close is blocked by invalid URL; view should focus URL field and show inline error.
+    static let settingsFocusURLField = Notification.Name("SettingsFocusURLField")
+    /// Post when Settings should open and focus the Node path field (e.g. after dismissing Node not found prompt).
+    static let settingsFocusNodePathField = Notification.Name("SettingsFocusNodePathField")
+    /// Post when Settings should open and focus the credentials username field (e.g. after dismissing Login failed prompt).
+    static let settingsFocusCredentialsField = Notification.Name("SettingsFocusCredentialsField")
+    
+    // Prompt action events
+    static let promptStartWorkClockIn = Notification.Name("PromptStartWorkClockIn")
+    static let promptStartWorkDismiss = Notification.Name("PromptStartWorkDismiss")
+    static let promptStopWorkClockOut = Notification.Name("PromptStopWorkClockOut")
+    static let promptStopWorkKeepWorking = Notification.Name("PromptStopWorkKeepWorking")
+    static let promptAlreadyClockedInDismiss = Notification.Name("PromptAlreadyClockedInDismiss")
+    static let promptCannotClockOutDismiss = Notification.Name("PromptCannotClockOutDismiss")
+    static let promptNotClockedInDismiss = Notification.Name("PromptNotClockedInDismiss")
+    static let promptAlreadyClockedOutDismiss = Notification.Name("PromptAlreadyClockedOutDismiss")
+    static let promptNetworkOfflineDismiss = Notification.Name("PromptNetworkOfflineDismiss")
+    static let promptLoginFailedDismiss = Notification.Name("PromptLoginFailedDismiss")
+    static let promptCredentialsRequiredGoToSettings = Notification.Name("PromptCredentialsRequiredGoToSettings")
+    static let promptSomethingWentWrongDismiss = Notification.Name("PromptSomethingWentWrongDismiss")
+    static let promptNodeNotFoundDismiss = Notification.Name("PromptNodeNotFoundDismiss")
+    static let promptCannotReachSiteDismiss = Notification.Name("PromptCannotReachSiteDismiss")
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -30,11 +51,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        AppLogger.debug("Launch: applicationWillFinishLaunching entered")
+        let args = ProcessInfo.processInfo.arguments.joined(separator: " ")
+        let envKeys = Array(ProcessInfo.processInfo.environment.keys).sorted().joined(separator: ",")
+        AppLogger.debug("Launch: args=\(args)")
+        AppLogger.debug("Launch: envKeys=\(envKeys)")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppLogger.debug("Launch: applicationDidFinishLaunching entered")
+        AppLogger.debug("Launch: window snapshot at didFinish: count=\(NSApp.windows.count)")
+        for window in NSApp.windows {
+            AppLogger.debug("Launch: window title=\"\(window.title)\" isVisible=\(window.isVisible)")
+        }
+
         // Single instance: if another JokerOfTime is already running, activate it and quit this launch.
         let bundleId = Bundle.main.bundleIdentifier ?? "io.github.randym.JokerOfTime"
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
         if let other = running.first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+            AppLogger.info("Launch: another instance running, activating it and quitting")
             other.activate(options: .activateIgnoringOtherApps)
             NSApp.terminate(nil)
             return
@@ -48,34 +84,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
             object: nil
         )
-        AppLogger.info("App launched")
+        AppLogger.info("Launch: app launched")
         StatusItemManager.shared.setup()
-        LoginItemManager.shared.setEnabled(AppSettings.shared.runOnLogin)
-
-        if !CredentialsManager.shared.hasStoredCredentials {
-            AppLogger.info("Startup: no credentials, showing credentials window")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                CredentialsWindowController.shared.show()
-            }
-            // Do not run node check or handleLaunch until we have credentials.
-        } else {
-            runTimeCardTask()
+        if !AppEnvironment.isLocal {
+            LoginItemManager.shared.setEnabled(AppSettings.shared.runOnLogin)
         }
-
-        NotificationCenter.default.addObserver(
-            forName: .closeCredentialsWindow,
-            object: nil,
-            queue: .main
-        ) { _ in
-            CredentialsWindowController.shared.close()
-            if CredentialsManager.shared.hasStoredCredentials {
-                AppLogger.info("Credentials saved: running time card task")
-                SessionManager.shared.clearSessionStateForNewCredentials()
-                DispatchQueue.main.async {
-                    runTimeCardTask()
-                }
-            }
-        }
+        NetworkMonitor.shared.start()
+        _ = PreflightState.shared
+        AppLogger.info("Launch: fetching timecard status from King of Time (startup, with backoff, will update session state)")
+        AutomationController.shared.requestResync(source: .startup)
 
         NotificationCenter.default.addObserver(
             forName: .credentialsCleared,
@@ -85,6 +102,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SessionManager.shared.onCredentialsCleared()
         }
 
+        // Background triggers only: use backoff retry (transient failures common). User-initiated (launch, credentials saved, settings close) run once and fail.
         // Fetch time card when system wakes from sleep (e.g. login-item app after user logs in or machine wakes).
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -92,10 +110,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { _ in
             if CredentialsManager.shared.hasStoredCredentials {
-                SessionManager.shared.recheckTimecardStatus()
+                AppLogger.info("Launch: wake — fetching timecard status from King of Time (with backoff retry, will update session state)")
+                AutomationController.shared.requestResync(source: .wake)
             }
         }
+
+        // When we come back online, sync timecard so icon and state update without user action.
+        NotificationCenter.default.addObserver(
+            forName: NetworkMonitor.connectivityDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { note in
+            guard note.userInfo?["isConnected"] as? Bool == true else { return }
+            AppLogger.info("Launch: network back online, fetching timecard status from King of Time (with backoff retry, will update session state)")
+            AutomationController.shared.requestResync(source: .network)
+        }
     }
+
 
     private func logLocale() {
         guard AppEnvironment.isLocal else { return }
@@ -106,12 +137,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let preferredStr = preferred.isEmpty ? "[]" : preferred.joined(separator: ", ")
         let overrides = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String] ?? []
         let overridesStr = overrides.isEmpty ? "none" : overrides.joined(separator: ", ")
-        let msg = "[locale] bundlePath=\(path) | bundleId=\(id) | preferred=\(preferredStr) | AppleLanguages=\(overridesStr)"
-        fputs(msg + "\n", stderr)
-        AppLogger.info("Locale: bundlePath=\(path)")
-        AppLogger.info("Locale: bundleId=\(id), preferredLocalizations=\(preferredStr), AppleLanguages override=\(overridesStr)")
+        AppLogger.debug("Locale: bundlePath=\(path), bundleId=\(id), preferred=\(preferredStr), AppleLanguages=\(overridesStr)")
         if preferred.first != overrides.first, !overrides.isEmpty {
-            AppLogger.info("Locale: override set but preferred is \(preferredStr); ensure .lproj is in bundle or restart after defaults write.")
+            AppLogger.debug("Locale: override set but preferred is \(preferredStr); ensure .lproj is in bundle or restart after defaults write.")
         }
     }
 
@@ -120,15 +148,129 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        AppLogger.info("Quit")
+        AppLogger.info("Launch: quit")
     }
 }
 
-/// Log in (if needed), fetch and parse time card, update state, and show start-work prompt if appropriate. Call only when credentials exist.
-func runTimeCardTask() {
-    _ = AutomationInvoker.shared.performStartupNodeCheck()
-    AutomationInvoker.shared.runAppStartLog()
-    SessionManager.shared.handleLaunch()
+/// Log in (if needed), fetch and parse King of Time timecard, update session state, and show start-work prompt if appropriate. Call only when credentials exist.
+func runTimeCardTask(context: PreflightUIContext = .startup) {
+    AppLogger.info("runTimeCardTask: context=\(context) — fetching timecard status from King of Time (with backoff, will update session state)")
+    BackoffRetryRunner.run(command: ResyncCommand(context: context)) { result in
+        if case .failure(let error) = result, let preflightErr = error as? PreflightFailureError {
+            PreflightUIHandler.handleFailure(preflightErr.failure, context: context)
+        }
+    }
+}
+
+/// Manual sync from the menu: run preflight once (no backoff). On success, refresh timecard;
+/// on failure, route through PreflightUIHandler with `.manualSync`.
+/// Helper for user-initiated automation (clock in/out, sync): run preflight once,
+/// then either execute `action` (on success) or route failure via PreflightUIHandler.
+func runUserAutomationWithPreflight(label: String, action: @escaping () -> Void) {
+    AppLogger.info("runUserAutomationWithPreflight[\(label)]: starting preflight")
+    DispatchQueue.global(qos: .userInitiated).async {
+        let outcome = PreflightRunner.runPreflightOutcome()
+        DispatchQueue.main.async {
+            if outcome.success {
+                AppLogger.info("runUserAutomationWithPreflight[\(label)]: preflight OK, running action")
+                action()
+            } else if let failure = outcome.failure {
+                PreflightUIHandler.handleFailure(failure, context: .manualSync)
+            }
+        }
+    }
+}
+
+/// Wraps `PreflightFailure` so it can be returned from `RetryableCommand.execute()` and passed to the retry completion.
+struct PreflightFailureError: Error {
+    let failure: PreflightFailure
+    
+    /// Whether this failure is transient and should be retried.
+    var isTransient: Bool {
+        failure.isTransient
+    }
+}
+
+/// Command for resync contexts (startup, auto-resync, manual sync): run preflight with
+/// backoff then (on success) run automation + session handling.
+struct ResyncCommand: RetryableCommand {
+    let context: PreflightUIContext
+
+    func execute() -> Result<Void, Error> {
+        let outcome = PreflightRunner.runPreflightOutcome()
+        guard outcome.success else {
+            if let f = outcome.failure {
+                let error = PreflightFailureError(failure: f)
+                return .failure(error)
+            }
+            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown, isTransient: false)))
+        }
+        AppLogger.info("ResyncCommand: context=\(context) — fetching timecard status from King of Time and updating session state")
+        AutomationInvoker.shared.runAppStartLog()
+        SessionManager.shared.handleLaunch()
+        return .success(())
+    }
+}
+
+/// Command for user-initiated Clock In. Performs clock-in via AutomationInvoker and routes
+/// success/failure through SessionManager helpers. Preflight is run by AutomationController
+/// before this command executes.
+struct ClockInCommand: RetryableCommand {
+    func execute() -> Result<Void, Error> {
+        let session = SessionManager.shared
+        session.objectWillChange.send()
+        session.isAutomationRunning = true
+        let (ok, output) = AutomationInvoker.shared.runClockSync(action: .clockIn)
+        session.isAutomationRunning = false
+        if ok {
+            session.onClockInAutomationSucceeded()
+            return .success(())
+        } else {
+            session.onClockInAutomationFailed(output: output)
+            let error = NSError(domain: "ClockInCommand", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: output
+            ])
+            return .failure(error)
+        }
+    }
+}
+
+/// Command for user-initiated Clock Out. Performs clock-out via AutomationInvoker and routes
+/// success/failure through SessionManager helpers. Preflight is run by AutomationController
+/// before this command executes.
+struct ClockOutCommand: RetryableCommand {
+    func execute() -> Result<Void, Error> {
+        let session = SessionManager.shared
+        session.objectWillChange.send()
+        session.isAutomationRunning = true
+        let (ok, output) = AutomationInvoker.shared.runClockSync(action: .clockOut)
+        session.isAutomationRunning = false
+        if ok {
+            session.onClockOutAutomationSucceeded()
+            return .success(())
+        } else {
+            session.onClockOutAutomationFailed(output: output)
+            let error = NSError(domain: "ClockOutCommand", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: output
+            ])
+            return .failure(error)
+        }
+    }
+}
+
+private var isBackgroundResyncInProgress = false
+
+/// Run timecard sync with backoff retry. If a background resync is already in progress, skip and do not call completion.
+func runBackgroundResync(source: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    if isBackgroundResyncInProgress {
+        AppLogger.info("Background resync already in progress, skipping (\(source))")
+        return
+    }
+    isBackgroundResyncInProgress = true
+    BackoffRetryRunner.run(command: ResyncCommand(context: .autoResync)) { result in
+        isBackgroundResyncInProgress = false
+        completion(result)
+    }
 }
 
 /// Environment (local vs production). Set at build time via build-app.sh; missing file (e.g. swift run) defaults to "local".

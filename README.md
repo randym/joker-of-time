@@ -111,13 +111,17 @@ If you manage to break this during installation, you were probably trying someth
 
 ## Menu bar icon
 
-The menu bar icon shows three states:
+The menu bar icon shows these states:
 
 | State | Icon | Meaning |
-|-------|------|--------|
-| **Idle** | <img src="docs/screenshots/clock-line.png" alt="Outline clock" width="24"/> | Not clocked in; ready to clock in or sync |
-| **Working** | <img src="docs/screenshots/clock-fill.png" alt="Filled clock" width="24"/> | Clocked in; you’re on the clock |
-| **Syncing** | <img src="docs/screenshots/progress.png" alt="Progress indicator" width="24"/> | Automation running |
+|-------|------|---------|
+| **Idle** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/idle_clocked_out_unknown_dark.png"><img src="docs/icons/idle_clocked_out_unknown_light.png" alt="Outline clock" width="24"/></picture> | Not clocked in; ready to clock in or sync |
+| **Working** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/working_clocked_in_dark.png"><img src="docs/icons/working_clocked_in_light.png" alt="Filled clock" width="24"/></picture> | Clocked in; you’re on the clock |
+| **Syncing** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/syncing_fetching_timecard_dark.png"><img src="docs/icons/syncing_fetching_timecard_light.png" alt="Progress indicator" width="24"/></picture> | Automation running |
+| **Not ready — network offline** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_network_offline_dark.png"><img src="docs/icons/not_ready_network_offline_light.png" alt="Wi-Fi error" width="24"/></picture> | Mac is offline; app won’t run automation until network is back |
+| **Not ready — keychain error** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_keychain_error_dark.png"><img src="docs/icons/not_ready_keychain_error_light.png" alt="Keychain error" width="24"/></picture> | Keychain problem; credentials can’t be loaded or saved |
+| **Not ready — cannot reach site** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_cannot_reach_site_dark.png"><img src="docs/icons/not_ready_cannot_reach_site_light.png" alt="Site unreachable" width="24"/></picture> | King of Time site can’t be reached from this Mac |
+| **Not ready — other** | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/not_ready_other_dark.png"><img src="docs/icons/not_ready_other_light.png" alt="Generic not-ready" width="24"/></picture> | Helper not found or other preflight failure; see alert for details |
 
 If everything is working properly, you’ll forget this app exists—which is exactly the point.
 
