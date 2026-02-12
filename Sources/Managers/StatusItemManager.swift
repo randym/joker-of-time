@@ -243,6 +243,19 @@ final class StatusItemManager: NSObject {
             in: button
         )
     }
+    
+    /// Screenshot mode: programmatically show menu for screenshot capture
+    func showMenuForScreenshot() {
+        guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+        guard let button = statusItem?.button else { return }
+        let menu = buildMenu()
+        menu.appearance = NSApp.appearance
+        menu.popUp(
+            positioning: nil,
+            at: NSPoint(x: -10, y: button.bounds.height + 10),
+            in: button
+        )
+    }
 
     private func buildMenu() -> NSMenu {
         let session = SessionManager.shared
@@ -334,6 +347,12 @@ final class StatusItemManager: NSObject {
             username: credentials.hasStoredCredentials ? credentials.username : nil,
             nodeVersion: AutomationInvoker.shared.nodeVersionForAbout
         )
+    }
+    
+    /// Screenshot mode: programmatically show About window for screenshot capture
+    func showAboutForScreenshot() {
+        guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+        openAbout()
     }
 
     @objc private func clockIn() {

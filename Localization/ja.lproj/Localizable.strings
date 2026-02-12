@@ -70,7 +70,7 @@
 "alert.something_wrong.message" = "サイトを読み取れません。仕様変更の可能性があります。";
 
 "alert.node_not_found.title" = "Node.js が見つかりません";
-"alert.node_not_found.message" = "自動処理に Node.js が必要です。インストールして、設定で指定してください。";
+"alert.node_not_found.message" = "自動処理に Node.js が必要です。Node.js をインストールして、アプリを再起動してください。";
 
 "alert.ok" = "OK";
 "alert.error_icon" = "エラー";
@@ -78,7 +78,7 @@
 /* Stop-work dialog */
 "stop_work.critical.title" = "終わり。";
 "stop_work.critical.message" = "予定時間に到達しました。退勤しましょう。";
-"stop_work.over.message" = "%d時間 %d分オーバーです。退勤しましょう。";
+"stop_work.over.message" = "予定時間をオーバーしています。退勤しましょう。";
 "stop_work.early.title" = "退勤しますか？";
 "stop_work.early.message" = "予定の労働時間に達していません。今、退勤しますか？";
 "stop_work.confirm.title" = "退勤しますか？";
