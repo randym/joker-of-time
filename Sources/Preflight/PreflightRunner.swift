@@ -16,24 +16,9 @@ enum PreflightRunner {
         // Sync keychain error from CredentialsManager so tasks see fresh state.
         PreflightState.shared.syncKeychainErrorFromCredentialsManager()
 
-        let env = AppEnvironment.current
-        let settings = AppSettings.shared
-        let effectiveURL = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasCreds = CredentialsManager.shared.hasStoredCredentials
-        let networkConnected = NetworkMonitor.shared.isConnected
-        let keychainError = CredentialsManager.shared.keychainErrorMessage
-
-        let context = PreflightContext(
-            environment: env,
-            effectiveURL: effectiveURL,
-            hasCredentials: hasCreds,
-            networkConnected: networkConnected,
-            keychainError: keychainError
-        )
-
         var failure: PreflightFailure?
         for task in tasks {
-            switch task.execute(context: context) {
+            switch task.execute() {
             case .success:
                 continue
             case .failure(let f):

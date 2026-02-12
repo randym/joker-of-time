@@ -36,6 +36,7 @@
 "preflight.node_not_found" = "Node なし";
 "preflight.keychain_error" = "キーチェーン不調";
 "preflight.cannot_reach_site" = "サイト未到達";
+"preflight.unknown" = "準備できません";
 
 /* Alerts */
 "alert.already_clocked_in.title" = "すでに出勤済み";
@@ -49,9 +50,6 @@
 "alert.login_failed.message" = "設定で認証情報を確認してください。";
 "alert.login_failed.bad_credentials" = "ログイン ID またはパスワードが違います。";
 "alert.login_failed.timeout" = "サイトが応答しませんでした。もう一度。";
-
-"alert.cannot_connect.title" = "接続できません";
-"alert.cannot_connect.message" = "設定のホストに接続できません。";
 
 "alert.network_offline.title" = "オフライン";
 "alert.network_offline.message" = "オンラインに戻れば同期します。";
@@ -73,16 +71,17 @@
 "stop_work.critical.message" = "予定時間に到達しました。退勤しましょう。";
 "stop_work.over.message" = "%d時間 %d分オーバーです。退勤しましょう。";
 "stop_work.early.title" = "退勤しますか？";
-"stop_work.early.message" = "残り %d時間 %d分。今、退勤しますか？";
+"stop_work.early.message" = "予定の労働時間に達していません。今、退勤しますか？";
 "stop_work.confirm.title" = "退勤しますか？";
 "stop_work.confirm.message" = "今、退勤しますか？";
 "button.no_keep_working" = "続ける";
 "button.yes_clock_out" = "退勤する";
 
 /* Start-work dialog */
-"start_work.dont_ask_again" = "今日はもう聞かない";
 "button.no" = "いいえ";
 "button.yes" = "はい";
+"start_work.clock_in" = "出勤";
+"start_work.dismiss" = "閉じる";
 "start_work.msg0.title" = "時間だ。";
 "start_work.msg0.subtitle" = "ワンクリックで出勤。ブラウザもログインも不要。";
 "start_work.msg1.title" = "システムが待ってる。";
@@ -100,7 +99,6 @@
 "window.title" = "Joker of Time";
 "window.clock_in" = "出勤";
 "window.clock_out" = "退勤";
-"window.credentials" = "認証情報";
 "window.settings" = "設定";
 
 /* About */
@@ -118,17 +116,8 @@
 
 /* Credentials form */
 "credentials.title" = "King of Time ログイン";
-"credentials.explanation" = "King of Time と同じログイン ID / パスワードを入力してください。\n\n保存先はこの Mac のキーチェーンのみ。打刻・同期以外では送信しません。";
-"credentials.stored_securely" = "キーチェーンに保存されます。";
 "credentials.login_id" = "ログイン ID";
 "credentials.password" = "パスワード";
-"credentials.close" = "閉じる";
-"credentials.save" = "保存";
-"credentials.saved" = "保存しました。";
-"credentials.cleared" = "削除しました。";
-"credentials.test" = "接続テスト";
-"credentials.enter_login_password" = "ログイン ID とパスワードを入力してください。";
-"credentials.failed_to_save" = "保存できませんでした。";
 "credentials.masked" = "********";
 "credentials.error.save_failed" = "キーチェーンに保存できません。";
 "credentials.error.corrupted" = "認証情報が壊れているようです。入れ直してください。";
@@ -156,43 +145,28 @@
 
 "settings.kot" = "King of Time";
 "settings.url" = "URL";
-"settings.open_in_browser" = "ブラウザで開く";
-"settings.use_default_url" = "既定を使用";
-"settings.url_help" = "打刻に使う URL です。";
-"settings.example" = "例:";
-"settings.example_url" = "https://s3.ta.kingoftime.jp/independent/recorder2/personal/";
-"settings.url_tip" = "必要なときだけ変更してください。";
 "settings.url_invalid" = "URL が正しくありません。";
 "settings.url_use_https" = "本番は HTTPS です。";
 
 "settings.node" = "Node";
 "settings.node_path" = "Node の場所";
-"settings.node_path_help" = "自動処理に使う Node です。";
 
 "settings.credentials_help" = "キーチェーンに保存されます。";
 
-"settings.workday" = "勤務";
 "settings.hours_per_day" = "勤務時間";
 "settings.workday_help" = "この時間で退勤をリマインドします。";
-"settings.workday_default" = "デフォルト・9時間";
 
-"settings.general" = "一般";
 "settings.launch_at_login" = "ログイン時に起動";
 "settings.launch_at_login_help" = "ログイン時に自動で起動します。";
 
 "settings.enable_logging" = "ログを有効にする";
-"settings.enable_logging_help" = "ログを出力します。";
 "settings.log_level" = "ログレベル";
 "settings.log_level.none" = "なし";
 "settings.log_level.debug" = "デバッグ";
 "settings.log_level.info" = "情報";
 "settings.log_level.verbose" = "詳細";
-"settings.log_level_help" = "ログの詳細度です。";
 
 "settings.close" = "閉じる";
-"settings.cannot_close_invalid.title" = "URL を直してください";
-"settings.cannot_close_invalid.ok" = "OK";
-"settings.fix_url_to_close" = "URL を修正するか「既定を使用」を押してください。";
 
 /* Format */
 "format.hours" = "%.1f 時間";

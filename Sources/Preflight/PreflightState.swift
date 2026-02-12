@@ -86,10 +86,13 @@ final class PreflightState: ObservableObject {
         setKeychainError(message)
     }
 
-    /// True if automation can run: Node resolved, network connected, no keychain error, site reachable. Can-login is not required for "can run" (we discover it on first timecard).
+    /// True if automation can run: Node resolved, network connected, credentials stored, no credentials/keychain error, site reachable.
+    /// Can-login is not required for "can run" (we discover it on first timecard).
     var canRunAutomation: Bool {
         guard nodeResolved == true else { return false }
         guard networkConnected else { return false }
+        // Missing credentials is treated as a keychain/credentials error for readiness.
+        guard CredentialsManager.shared.hasStoredCredentials else { return false }
         guard keychainError == nil else { return false }
         guard siteReachable else { return false }
         return true
@@ -100,8 +103,10 @@ final class PreflightState: ObservableObject {
         guard !canRunAutomation else { return nil }
         if let f = lastFailure { return f.reasonKey }
         if !networkConnected { return "preflight.network_offline" }
+        // Credentials missing OR an explicit keychain error → treat as one "credentials" error bucket.
+        if !CredentialsManager.shared.hasStoredCredentials { return "preflight.keychain_error" }
+        if let err = keychainError, !err.isEmpty { return "preflight.keychain_error" }
         if nodeResolved != true { return "preflight.node_not_found" }
-        if keychainError != nil, !(keychainError?.isEmpty ?? true) { return "preflight.keychain_error" }
         if !siteReachable { return "preflight.cannot_reach_site" }
         return "preflight.not_ready"
     }
@@ -111,8 +116,10 @@ final class PreflightState: ObservableObject {
         guard !canRunAutomation else { return nil }
         if let f = lastFailure { return f.iconName }
         if !networkConnected { return "wifi.exclamationmark.circle" }
+        // Credentials missing OR keychain error → credentials icon.
+        if !CredentialsManager.shared.hasStoredCredentials { return "person.crop.circle.badge.exclamationmark" }
+        if let err = keychainError, !err.isEmpty { return "person.crop.circle.badge.exclamationmark" }
         if nodeResolved != true { return "circle.slash" }
-        if keychainError != nil, !(keychainError?.isEmpty ?? true) { return "person.crop.circle.badge.exclamationmark" }
         if !siteReachable { return "mappin.slash.circle" }
         return "circle.slash"
     }

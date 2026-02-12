@@ -28,18 +28,9 @@ struct PreflightOutcome {
     let failure: PreflightFailure?
 }
 
-/// Snapshot of environment/settings passed into each preflight task.
-struct PreflightContext {
-    let environment: String
-    let effectiveURL: String
-    let hasCredentials: Bool
-    let networkConnected: Bool
-    let keychainError: String?
-}
-
 /// One preflight check (e.g. node, network, keychain, site reachability).
 protocol PreflightTask {
-    func execute(context: PreflightContext) -> PreflightResult
+    func execute() -> PreflightResult
 }
 
 /// Where preflight was triggered from, so UI can behave slightly differently if needed.

@@ -5,8 +5,8 @@ struct NetworkPreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.network_offline"
     static let failureIconName = "wifi.exclamationmark.circle"
 
-    func execute(context: PreflightContext) -> PreflightResult {
-        let connected = context.networkConnected
+    func execute() -> PreflightResult {
+        let connected = NetworkMonitor.shared.isConnected
         PreflightState.shared.setNetworkConnected(connected)
         if connected {
             AppLogger.verbose("Preflight: network OK")

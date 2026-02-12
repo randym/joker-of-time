@@ -7,7 +7,6 @@ struct SettingsView: View {
     @State private var credentialsUsername: String = ""
     @State private var credentialsPassword: String = ""
     @State private var kotURLText: String = ""
-    @State private var urlValidationMessage: String?
     @FocusState private var urlFieldFocused: Bool
     @State private var nodePathText: String = ""
     @FocusState private var nodePathFieldFocused: Bool
@@ -176,19 +175,10 @@ struct SettingsView: View {
                                         .textFieldStyle(.roundedBorder)
                                         .focused($urlFieldFocused)
                                         .onChange(of: kotURLText) { newValue in
-                                            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                            urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
-                                            SettingsWindowController.shared.setCurrentURLString(trimmed)
-                                            if urlValidationMessage == nil && !trimmed.isEmpty {
-                                                settings.kotBaseURL = trimmed
-                                                settings.save()
-                                            }
+                                            SettingsWindowController.shared.setCurrentURLString(newValue)
+                                            settings.kotBaseURL = newValue
+                                            settings.save()
                                         }
-                                    if let msg = urlValidationMessage {
-                                        Text(msg)
-                                            .font(.caption)
-                                            .foregroundStyle(.red)
-                                    }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
@@ -203,8 +193,7 @@ struct SettingsView: View {
                                         .textFieldStyle(.roundedBorder)
                                         .focused($nodePathFieldFocused)
                                         .onChange(of: nodePathText) { newValue in
-                                            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                            settings.nodePath = trimmed
+                                            settings.nodePath = newValue
                                             settings.save()
                                             _ = AutomationInvoker.shared.performStartupNodeCheck()
                                         }
@@ -252,9 +241,7 @@ struct SettingsView: View {
                 Button(L10n.string("settings.close")) {
                     AppLogger.info("User: Settings Close tapped")
                     if AppEnvironment.isLocal {
-                        let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        SettingsWindowController.shared.setCurrentURLString(trimmed)
-                        urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
+                        SettingsWindowController.shared.setCurrentURLString(kotURLText)
                     }
                     NSApplication.shared.keyWindow?.close()
                 }
@@ -271,18 +258,13 @@ struct SettingsView: View {
             credentialsPassword = ""
             SettingsWindowController.shared.setCurrentCredentials(username: credentialsUsername, password: credentialsPassword)
             if AppEnvironment.isLocal {
-                kotURLText = settings.effectiveKotBaseURL
-                let trimmed = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
-                SettingsWindowController.shared.setCurrentURLString(trimmed)
-                let nodePathSetting = settings.nodePath.trimmingCharacters(in: .whitespacesAndNewlines)
-                nodePathText = nodePathSetting.isEmpty ? (AutomationInvoker.shared.resolvedNodePath ?? "") : nodePathSetting
+                kotURLText = settings.kotBaseURL
+                SettingsWindowController.shared.setCurrentURLString(settings.kotBaseURL)
+                nodePathText = settings.nodePath.isEmpty ? (AutomationInvoker.shared.resolvedNodePath ?? "") : settings.nodePath
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .settingsFocusURLField)) { _ in
             guard AppEnvironment.isLocal else { return }
-            let trimmed = kotURLText.trimmingCharacters(in: .whitespacesAndNewlines)
-            urlValidationMessage = AppSettings.kotURLValidationError(trimmed: trimmed)
             urlFieldFocused = true
         }
     }

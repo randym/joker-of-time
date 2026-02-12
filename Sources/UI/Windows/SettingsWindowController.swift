@@ -48,9 +48,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         self.window = window
 
-        let effective = AppSettings.shared.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        setCurrentURLString(effective)
-        AppLogger.info("Settings: show() — synced currentURLString=\(effective.isEmpty ? "(empty)" : effective)")
+        setCurrentURLString(AppSettings.shared.kotBaseURL)
+        AppLogger.info("Settings: show() — synced currentURLString=\(AppSettings.shared.kotBaseURL.isEmpty ? "(empty)" : AppSettings.shared.kotBaseURL)")
 
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -61,7 +60,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return true
     }
 
-    /// When Settings closes, save credentials to keychain if login ID or password changed, stop daemon so next run uses new account, then re-run preflight.
+    /// When Settings closes, save credentials to keychain if login ID or password changed, stop daemon so next run uses new account, then re-run preflight when appropriate.
     func windowWillClose(_ notification: Notification) {
         let un = currentCredentialsUsername.trimmingCharacters(in: .whitespaces)
         let pw = currentCredentialsPassword
@@ -84,11 +83,17 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             }
         }
 
-        AppLogger.info("Settings: window closed, running time card task with backoff retry")
-        runBackgroundResync(source: "settingsClose") { result in
-            if case .failure(let error) = result, let preflightErr = error as? PreflightFailureError {
-                PreflightUIHandler.handleFailure(preflightErr.failure, context: .settingsClose)
-            }
+        // Only trigger a resync when we actually have stored credentials. If the user
+        // closes Settings without entering credentials, leave the app in a clear
+        // \"credentials needed\" state and let the next user-initiated command re-run
+        // preflight and reopen Settings.
+        if let nowStored = CredentialsManager.shared.loadCredentials(),
+           !nowStored.username.trimmingCharacters(in: .whitespaces).isEmpty,
+           !nowStored.password.isEmpty {
+            AppLogger.info("Settings: window closed with stored credentials, fetching timecard status from King of Time (with backoff retry, will update session state)")
+            AutomationController.shared.requestResync(source: .settingsClose)
+        } else {
+            AppLogger.info("Settings: window closed without stored credentials; skipping fetch of timecard status from King of Time")
         }
     }
 

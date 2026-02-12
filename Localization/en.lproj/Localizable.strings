@@ -36,6 +36,7 @@
 "preflight.node_not_found" = "Node missing";
 "preflight.keychain_error" = "Keychain issue";
 "preflight.cannot_reach_site" = "Site unreachable";
+"preflight.unknown" = "Not ready";
 
 /* Alerts */
 "alert.already_clocked_in.title" = "Already clocked in";
@@ -49,9 +50,6 @@
 "alert.login_failed.message" = "Check your credentials in Settings.";
 "alert.login_failed.bad_credentials" = "Invalid login ID or password.";
 "alert.login_failed.timeout" = "No response from the site. Try again.";
-
-"alert.cannot_connect.title" = "Can't connect";
-"alert.cannot_connect.message" = "Can't reach the host set in Settings.";
 
 "alert.network_offline.title" = "Offline";
 "alert.network_offline.message" = "Back online? We'll sync.";
@@ -75,21 +73,36 @@
 "stop_work.over.message" = "You're %dh %dm over. Clock out.";
 
 "stop_work.early.title" = "Clock out?";
-"stop_work.early.message" = "%dh %dm left. Clock out anyway?";
+"stop_work.early.message" = "You have not met your scheduled working hours. Clock out anyway?";
 
 "stop_work.confirm.title" = "Clock out?";
 "stop_work.confirm.message" = "Clock out now?";
 
 "button.no_keep_working" = "Keep working";
 "button.yes_clock_out" = "Clock out";
+"button.no" = "No";
+"button.yes" = "Yes";
 
-/* Start-work dialog — unchanged, already on-brand */
+/* Start-work dialog */
+"start_work.clock_in" = "Clock In";
+"start_work.dismiss" = "Dismiss";
+"start_work.msg0.title" = "Time.";
+"start_work.msg0.subtitle" = "One click to clock in. No browser, no login.";
+"start_work.msg1.title" = "System's waiting.";
+"start_work.msg1.subtitle" = "When you're ready, clock in. We'll handle the rest.";
+"start_work.msg2.title" = "Start recording?";
+"start_work.msg2.subtitle" = "Clock in and we'll remind you to clock out.";
+"start_work.msg3.title" = "Clock in?";
+"start_work.msg3.subtitle" = "We'll remind you at the end of your planned hours.";
+"start_work.msg4.title" = "One click.";
+"start_work.msg4.subtitle" = "Clock in here. We'll take it from there.";
+"start_work.msg5.title" = "Same as ever.";
+"start_work.msg5.subtitle" = "Clock in and forget it. We'll call when it's time to clock out.";
 
 /* Window titles */
 "window.title" = "Joker of Time";
 "window.clock_in" = "Clock In";
 "window.clock_out" = "Clock Out";
-"window.credentials" = "Credentials";
 "window.settings" = "Settings";
 
 /* About */
@@ -107,18 +120,9 @@
 
 /* Credentials form */
 "credentials.title" = "King of Time login";
-"credentials.explanation" = "Use the same login ID and password as the King of Time site.\n\nStored locally in your Mac’s Keychain. Never sent anywhere except to King of Time.";
 
-"credentials.stored_securely" = "Stored securely in your keychain.";
 "credentials.login_id" = "Login ID";
 "credentials.password" = "Password";
-"credentials.close" = "Close";
-"credentials.save" = "Save";
-"credentials.saved" = "Saved.";
-"credentials.cleared" = "Cleared.";
-"credentials.test" = "Test connection";
-"credentials.enter_login_password" = "Enter login ID and password.";
-"credentials.failed_to_save" = "Save failed.";
 "credentials.masked" = "********";
 
 "credentials.error.save_failed" = "Could not write to Keychain.";
@@ -148,24 +152,17 @@
 
 "settings.kot" = "King of Time";
 "settings.url" = "URL";
-"settings.open_in_browser" = "Open in Browser";
-"settings.use_default_url" = "Use default";
-"settings.url_help" = "URL used for clocking in and out.";
 "settings.url_invalid" = "Invalid URL.";
 "settings.url_use_https" = "Use HTTPS in production.";
 
 "settings.node" = "Node";
 "settings.node_path" = "Node location";
-"settings.node_path_help" = "Node used for automation.";
 
 "settings.credentials_help" = "Stored securely in your keychain.";
 
-"settings.workday" = "Work day";
 "settings.hours_per_day" = "Work day length";
 "settings.workday_help" = "We'll remind you to clock out after this many hours.";
-"settings.workday_default" = "Default · 9 hours";
 
-"settings.general" = "General";
 "settings.launch_at_login" = "Launch at login";
 "settings.launch_at_login_help" = "Start automatically when you sign in.";
 
@@ -175,12 +172,8 @@
 "settings.log_level.debug" = "Debug";
 "settings.log_level.info" = "Info";
 "settings.log_level.verbose" = "Verbose";
-"settings.log_level_help" = "Controls log detail.";
 
 "settings.close" = "Close";
-"settings.cannot_close_invalid.title" = "Fix URL first";
-"settings.cannot_close_invalid.ok" = "OK";
-"settings.fix_url_to_close" = "Fix the URL or use default before closing.";
 
 /* Format */
 "format.hours" = "%.1f hours";

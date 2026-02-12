@@ -17,23 +17,7 @@ import * as log from "./log";
 
 log.info(`Node ${process.version}`);
 
-const CREDENTIALS_HINT =
-  "Configure credentials in the Mac helper (Keychain) and run clock-in/out from the menu.";
-
-function readRequiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    if (name === "KOT_USERNAME" || name === "KOT_PASSWORD") {
-      log.error("Missing credentials.", CREDENTIALS_HINT);
-    } else {
-      log.error("Missing required environment variable:", name);
-    }
-    process.exit(1);
-  }
-  return value;
-}
-
-type DaemonCommand =
+type Command =
   | { cmd: "timecard-status"; username: string; password: string; baseUrl?: string }
   | { cmd: "clock-in" | "clock-out"; username: string; password: string; baseUrl?: string };
 
@@ -75,7 +59,7 @@ async function main() {
       const trimmed = line.trim();
       if (!trimmed) return;
       try {
-        const body = JSON.parse(trimmed) as DaemonCommand;
+        const body = JSON.parse(trimmed) as Command;
         const page = await getOrCreateDaemonPage();
         if (body.cmd === "timecard-status") {
           const status = await fetchTimecardStatusWithPage(page, {
@@ -102,7 +86,7 @@ async function main() {
         const message =
           (err as any)?.automationMessage ??
           (err instanceof Error ? err.message : String(err));
-        console.log(JSON.stringify({ error: code, message }));
+        console.log(JSON.stringify({ ok: false, error: code, code, message }));
       }
     });
     rl.on("close", () => {
@@ -117,14 +101,22 @@ async function main() {
   log.info("Run started:", action ?? "(no action)");
 
   if (action === "timecard-status") {
-    const username = readRequiredEnv("KOT_USERNAME");
-    const password = readRequiredEnv("KOT_PASSWORD");
+    const input = await new Promise<string>((resolve) => {
+      const chunks: Buffer[] = [];
+      process.stdin.on("data", (chunk) => chunks.push(chunk));
+      process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    });
+    const body = JSON.parse(input.trim()) as Command;
+    if (body.cmd !== "timecard-status") {
+      log.error("Invalid command in JSON:", body.cmd);
+      process.exit(1);
+    }
     browserRef = await createBrowser();
     try {
       const status = await fetchTimecardStatusWithBrowser(browserRef, {
-        username,
-        password,
-        baseUrl: process.env.KOT_BASE_URL,
+        username: body.username,
+        password: body.password,
+        baseUrl: body.baseUrl,
       });
       const day = status.shouldWorkToday ? "Working day" : "Non-working day";
       const clock = status.clockedOut
@@ -144,7 +136,7 @@ async function main() {
         (err as any)?.automationMessage ??
         (err instanceof Error ? err.message : String(err));
       log.error("timecard-status failed:", message);
-      console.log(JSON.stringify({ error: code, message }));
+      console.log(JSON.stringify({ ok: false, error: code, code, message }));
       process.exit(1);
     } finally {
       await browserRef.close();
@@ -156,16 +148,24 @@ async function main() {
     process.exit(1);
   }
 
-  const username = readRequiredEnv("KOT_USERNAME");
-  const password = readRequiredEnv("KOT_PASSWORD");
+  const input = await new Promise<string>((resolve) => {
+    const chunks: Buffer[] = [];
+    process.stdin.on("data", (chunk) => chunks.push(chunk));
+    process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+  });
+  const body = JSON.parse(input.trim()) as Command;
+  if (body.cmd !== action) {
+    log.error("Command mismatch: expected", action, "got", body.cmd);
+    process.exit(1);
+  }
 
   browserRef = await createBrowser();
   try {
     await performClockActionWithBrowser(browserRef, {
-      action: action as ClockAction,
-      username,
-      password,
-      baseUrl: process.env.KOT_BASE_URL,
+      action: body.cmd,
+      username: body.username,
+      password: body.password,
+      baseUrl: body.baseUrl,
     });
     log.info("Clock action completed:", action);
     process.exit(0);

@@ -227,16 +227,21 @@ final class StatusItemManager: NSObject {
         guard let button = statusItem?.button else { return }
         let event = NSApp.currentEvent
         if event?.type == .rightMouseUp { return }
-        if let t = StatusItemManager.lastModalDismissTime, Date().timeIntervalSince(t) < StatusItemManager.modalDismissGraceInterval {
+        if let t = StatusItemManager.lastModalDismissTime,
+           Date().timeIntervalSince(t) < StatusItemManager.modalDismissGraceInterval {
             return
         }
-        if !CredentialsManager.shared.hasStoredCredentials {
-            CredentialsWindowController.shared.show()
-            return
-        }
+
+        // Always show the normal menu; missing credentials are handled by
+        // disabled actions + preflight/guards elsewhere so the user can
+        // still access Quit and About.
         let menu = buildMenu()
         menu.appearance = NSApp.appearance
-        menu.popUp(positioning: nil, at: NSPoint(x: -10, y: button.bounds.height + 10), in: button)
+        menu.popUp(
+            positioning: nil,
+            at: NSPoint(x: -10, y: button.bounds.height + 10),
+            in: button
+        )
     }
 
     private func buildMenu() -> NSMenu {
@@ -316,8 +321,7 @@ final class StatusItemManager: NSObject {
         AppLogger.info("User: menu About")
         let session = SessionManager.shared
         let credentials = CredentialsManager.shared
-        let settings = AppSettings.shared
-        let baseURL = settings.effectiveKotBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseURL = AppSettings.shared.kotBaseURL
         let host: String
         if !baseURL.isEmpty, let url = URL(string: baseURL), let h = url.host, !h.isEmpty {
             host = url.port.map { "\(h):\($0)" } ?? h
@@ -334,17 +338,17 @@ final class StatusItemManager: NSObject {
 
     @objc private func clockIn() {
         AppLogger.info("User: menu Clock In")
-        SessionManager.shared.clockInFromMenu()
+        AutomationController.shared.requestClockIn()
     }
 
     @objc private func clockOut() {
         AppLogger.info("User: menu Clock Out")
-        SessionManager.shared.stopWorkFlow()
+        AutomationController.shared.requestClockOut()
     }
 
     @objc private func sync() {
         AppLogger.info("User: menu Sync timecard")
-        SessionManager.shared.recheckTimecardStatus()
+        AutomationController.shared.requestResync(source: .manual)
     }
 
     @objc private func openSettings() {

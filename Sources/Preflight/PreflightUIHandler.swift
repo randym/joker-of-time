@@ -19,8 +19,12 @@ enum PreflightUIHandler {
             SessionManager.shared.showNodeNotFoundAlert()
 
         case .keychainError, .unknown:
-            AppLogger.info("Preflight: failure kind=\(failure.kind) (no alert)")
-            break
+            if context == .autoResync { return }
+            AppLogger.info("Preflight: showing Settings (no credentials / credentials failure)")
+            SettingsWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NotificationCenter.default.post(name: .settingsFocusCredentialsField, object: nil)
+            }
         }
     }
 }

@@ -5,13 +5,13 @@ struct SiteReachabilityPreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.cannot_reach_site"
     static let failureIconName = "mappin.slash.circle"
 
-    func execute(context: PreflightContext) -> PreflightResult {
-        guard context.networkConnected, context.hasCredentials else {
+    func execute() -> PreflightResult {
+        guard NetworkMonitor.shared.isConnected, CredentialsManager.shared.hasStoredCredentials else {
             PreflightState.shared.setSiteReachable(true)
             return .success
         }
 
-        let reachable = AutomationInvoker.shared.quickSiteReachabilityCheck(networkConnected: context.networkConnected)
+        let reachable = AutomationInvoker.shared.quickSiteReachabilityCheck(networkConnected: NetworkMonitor.shared.isConnected)
         PreflightState.shared.setSiteReachable(reachable)
         if reachable {
             AppLogger.verbose("Preflight: site reachable")

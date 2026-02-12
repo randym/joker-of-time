@@ -1,7 +1,5 @@
 import Foundation
 
-/// Localized strings for the app. Keys are in Localizable.strings (en.lproj, ja.lproj, etc.).
-/// Dev only: LOCALE env (e.g. "en" or "ja") if set. Production: always OS language, fallback to English.
 enum L10n {
     private static let bundle: Bundle = {
         let main = Bundle.main

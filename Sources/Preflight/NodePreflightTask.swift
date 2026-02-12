@@ -5,7 +5,7 @@ struct NodePreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.node_not_found"
     static let failureIconName = "circle.slash"
 
-    func execute(context: PreflightContext) -> PreflightResult {
+    func execute() -> PreflightResult {
         let ok = AutomationInvoker.shared.performStartupNodeCheck()
         PreflightState.shared.setNodeResolved(ok)
         if ok {
