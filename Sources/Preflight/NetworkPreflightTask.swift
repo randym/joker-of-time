@@ -4,6 +4,8 @@ import Foundation
 struct NetworkPreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.network_offline"
     static let failureIconName = "wifi.exclamationmark.circle"
+    
+    var isTransient: Bool { true }  // Network can come back
 
     func execute() -> PreflightResult {
         let connected = NetworkMonitor.shared.isConnected
@@ -13,7 +15,7 @@ struct NetworkPreflightTask: PreflightTask {
             return .success
         } else {
             AppLogger.verbose("Preflight: network offline")
-            return .failure(PreflightFailure(reasonKey: Self.failureReasonKey, iconName: Self.failureIconName, kind: .networkOffline))
+            return .failure(PreflightFailure(reasonKey: Self.failureReasonKey, iconName: Self.failureIconName, kind: .networkOffline, isTransient: isTransient))
         }
     }
 }

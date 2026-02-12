@@ -21,6 +21,12 @@ enum BackoffRetryRunner {
                 AppLogger.debug("BackoffRetry: succeeded on attempt \(attempt)")
                 completion(.success(()))
             case .failure(let error):
+                // Check if error is non-retryable (non-transient failures should fail immediately)
+                if let preflightError = error as? PreflightFailureError, !preflightError.isTransient {
+                    AppLogger.debug("BackoffRetry: non-transient preflight error, stopping immediately")
+                    completion(.failure(error))
+                    return
+                }
                 if attempt >= maxAttempts {
                     AppLogger.debug("BackoffRetry: failed after \(maxAttempts) attempts")
                     completion(.failure(error))

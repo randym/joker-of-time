@@ -35,6 +35,7 @@
 "preflight.network_offline" = "Offline";
 "preflight.node_not_found" = "Node missing";
 "preflight.keychain_error" = "Keychain issue";
+"preflight.credentials_required" = "Credentials required";
 "preflight.cannot_reach_site" = "Site unreachable";
 "preflight.unknown" = "Not ready";
 
@@ -45,6 +46,10 @@
 "alert.cannot_clock_out.title" = "Can't clock out";
 "alert.cannot_clock_out.not_clocked_in" = "You're not clocked in.";
 "alert.cannot_clock_out.already_clocked_out" = "You've already clocked out.";
+
+"alert.credentials_required.title" = "Credentials required";
+"alert.credentials_required.message" = "Please provide your King of Time login credentials in Settings to get started.";
+"alert.go_to_settings" = "Go to Settings";
 
 "alert.login_failed.title" = "Login failed";
 "alert.login_failed.message" = "Check your credentials in Settings.";

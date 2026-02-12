@@ -4,6 +4,8 @@ import Foundation
 struct SiteReachabilityPreflightTask: PreflightTask {
     static let failureReasonKey = "preflight.cannot_reach_site"
     static let failureIconName = "mappin.slash.circle"
+    
+    var isTransient: Bool { true }  // Site can come back up
 
     func execute() -> PreflightResult {
         guard NetworkMonitor.shared.isConnected, CredentialsManager.shared.hasStoredCredentials else {
@@ -18,7 +20,7 @@ struct SiteReachabilityPreflightTask: PreflightTask {
             return .success
         } else {
             AppLogger.verbose("Preflight: site not reachable")
-            return .failure(PreflightFailure(reasonKey: Self.failureReasonKey, iconName: Self.failureIconName, kind: .cannotReachSite))
+            return .failure(PreflightFailure(reasonKey: Self.failureReasonKey, iconName: Self.failureIconName, kind: .cannotReachSite, isTransient: isTransient))
         }
     }
 }

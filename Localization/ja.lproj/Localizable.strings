@@ -35,6 +35,7 @@
 "preflight.network_offline" = "オフライン";
 "preflight.node_not_found" = "Node なし";
 "preflight.keychain_error" = "キーチェーン不調";
+"preflight.credentials_required" = "認証情報が必要";
 "preflight.cannot_reach_site" = "サイト未到達";
 "preflight.unknown" = "準備できません";
 
@@ -45,6 +46,14 @@
 "alert.cannot_clock_out.title" = "退勤できません";
 "alert.cannot_clock_out.not_clocked_in" = "本日は未出勤です。";
 "alert.cannot_clock_out.already_clocked_out" = "本日はすでに退勤済みです。";
+
+"alert.credentials_required.title" = "認証情報が必要です";
+"alert.credentials_required.message" = "開始するには、設定でKing of Timeのログイン認証情報を入力してください。";
+"alert.go_to_settings" = "設定を開く";
+
+"alert.credentials_required.title" = "認証情報が必要です";
+"alert.credentials_required.message" = "開始するには、設定でKing of Timeのログイン認証情報を入力してください。";
+"alert.go_to_settings" = "設定を開く";
 
 "alert.login_failed.title" = "ログイン失敗";
 "alert.login_failed.message" = "設定で認証情報を確認してください。";

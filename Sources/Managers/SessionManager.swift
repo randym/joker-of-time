@@ -216,6 +216,17 @@ final class SessionManager: ObservableObject {
         }
         
         NotificationCenter.default.addObserver(
+            forName: .promptCredentialsRequiredGoToSettings,
+            object: nil,
+            queue: .main
+        ) { _ in
+            SettingsWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NotificationCenter.default.post(name: .settingsFocusCredentialsField, object: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
             forName: .promptLoginFailedDismiss,
             object: nil,
             queue: .main
@@ -223,6 +234,20 @@ final class SessionManager: ObservableObject {
             SettingsWindowController.shared.show()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 NotificationCenter.default.post(name: .settingsFocusCredentialsField, object: nil)
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: .promptNodeNotFoundDismiss,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Only open Settings in dev builds (nodePath is only configurable in dev)
+            if AppEnvironment.isLocal {
+                SettingsWindowController.shared.show()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    NotificationCenter.default.post(name: .settingsFocusNodePathField, object: nil)
+                }
             }
         }
         
@@ -456,6 +481,10 @@ final class SessionManager: ObservableObject {
             return true
         }
         return false
+    }
+
+    func showCredentialsRequiredAlert() {
+        CredentialsRequired.present()
     }
 
     func showLoginFailedAlert(output: String = "") {

@@ -18,13 +18,15 @@ enum PreflightUIHandler {
             AppLogger.info("Preflight: showing node not found alert")
             SessionManager.shared.showNodeNotFoundAlert()
 
+        case .credentialsRequired:
+            if context == .autoResync { return }
+            AppLogger.info("Preflight: showing CredentialsRequired prompt (no credentials)")
+            SessionManager.shared.showCredentialsRequiredAlert()
+            
         case .keychainError, .unknown:
             if context == .autoResync { return }
-            AppLogger.info("Preflight: showing Settings (no credentials / credentials failure)")
-            SettingsWindowController.shared.show()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                NotificationCenter.default.post(name: .settingsFocusCredentialsField, object: nil)
-            }
+            AppLogger.info("Preflight: showing LoginFailed prompt (keychain access error)")
+            SessionManager.shared.showLoginFailedAlert()
         }
     }
 }

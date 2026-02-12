@@ -142,33 +142,69 @@ final class AutomationController {
             runResyncWithBackoff(context: .settingsClose, uiContext: .settingsClose)
 
         case .manual:
-            // Manual Sync from the menu: keep the existing behavior
-            // of preflight + refreshFromTimeCard().
-            runUserAutomationWithPreflight(label: "sync") {
-                SessionManager.shared.recheckTimecardStatus()
-                AutomationController.shared.endCommand()
+            // Manual Sync from the menu: run preflight first, then refresh timecard.
+            // If preflight fails, end the command so other automations aren't blocked.
+            DispatchQueue.global(qos: .userInitiated).async {
+                let outcome = PreflightRunner.runPreflightOutcome()
+                DispatchQueue.main.async {
+                    if outcome.success {
+                        SessionManager.shared.recheckTimecardStatus()
+                        self.endCommand()
+                    } else {
+                        if let failure = outcome.failure {
+                            PreflightUIHandler.handleFailure(failure, context: .manualSync)
+                        }
+                        self.endCommand()
+                    }
+                }
             }
         }
     }
 
     /// Request a Clock In operation initiated by the user.
+    /// Runs preflight first; only proceeds if preflight passes and no other command is running.
     func requestClockIn() {
-        guard beginCommand(.clockIn) else { return }
+        AppLogger.info("AutomationController: clockIn requested — running preflight")
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = ClockInCommand().execute()
+            let outcome = PreflightRunner.runPreflightOutcome()
             DispatchQueue.main.async {
-                self.handleCommandResult(kind: .clockIn, preflightContext: .manualSync, result: result)
+                guard outcome.success else {
+                    if let failure = outcome.failure {
+                        PreflightUIHandler.handleFailure(failure, context: .manualSync)
+                    }
+                    return
+                }
+                guard self.beginCommand(.clockIn) else { return }
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let result = ClockInCommand().execute()
+                    DispatchQueue.main.async {
+                        self.handleCommandResult(kind: .clockIn, preflightContext: .manualSync, result: result)
+                    }
+                }
             }
         }
     }
 
     /// Request a Clock Out operation initiated by the user.
+    /// Runs preflight first; only proceeds if preflight passes and no other command is running.
     func requestClockOut() {
-        guard beginCommand(.clockOut) else { return }
+        AppLogger.info("AutomationController: clockOut requested — running preflight")
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = ClockOutCommand().execute()
+            let outcome = PreflightRunner.runPreflightOutcome()
             DispatchQueue.main.async {
-                self.handleCommandResult(kind: .clockOut, preflightContext: .manualSync, result: result)
+                guard outcome.success else {
+                    if let failure = outcome.failure {
+                        PreflightUIHandler.handleFailure(failure, context: .manualSync)
+                    }
+                    return
+                }
+                guard self.beginCommand(.clockOut) else { return }
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let result = ClockOutCommand().execute()
+                    DispatchQueue.main.async {
+                        self.handleCommandResult(kind: .clockOut, preflightContext: .manualSync, result: result)
+                    }
+                }
             }
         }
     }

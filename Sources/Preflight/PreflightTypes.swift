@@ -5,6 +5,7 @@ enum PreflightFailureKind {
     case nodeNotResolved
     case networkOffline
     case keychainError
+    case credentialsRequired  // No credentials stored (first launch)
     case cannotReachSite
     case unknown
 }
@@ -14,6 +15,7 @@ struct PreflightFailure {
     let reasonKey: String
     let iconName: String
     let kind: PreflightFailureKind
+    let isTransient: Bool  // Whether this failure is transient and should be retried
 }
 
 /// Result of running a single preflight task.
@@ -30,6 +32,8 @@ struct PreflightOutcome {
 
 /// One preflight check (e.g. node, network, keychain, site reachability).
 protocol PreflightTask {
+    /// Whether failures from this task are transient (should be retried) or permanent (fail immediately).
+    var isTransient: Bool { get }
     func execute() -> PreflightResult
 }
 

@@ -33,6 +33,7 @@ extension Notification.Name {
     static let promptAlreadyClockedOutDismiss = Notification.Name("PromptAlreadyClockedOutDismiss")
     static let promptNetworkOfflineDismiss = Notification.Name("PromptNetworkOfflineDismiss")
     static let promptLoginFailedDismiss = Notification.Name("PromptLoginFailedDismiss")
+    static let promptCredentialsRequiredGoToSettings = Notification.Name("PromptCredentialsRequiredGoToSettings")
     static let promptSomethingWentWrongDismiss = Notification.Name("PromptSomethingWentWrongDismiss")
     static let promptNodeNotFoundDismiss = Notification.Name("PromptNodeNotFoundDismiss")
     static let promptCannotReachSiteDismiss = Notification.Name("PromptCannotReachSiteDismiss")
@@ -183,6 +184,11 @@ func runUserAutomationWithPreflight(label: String, action: @escaping () -> Void)
 /// Wraps `PreflightFailure` so it can be returned from `RetryableCommand.execute()` and passed to the retry completion.
 struct PreflightFailureError: Error {
     let failure: PreflightFailure
+    
+    /// Whether this failure is transient and should be retried.
+    var isTransient: Bool {
+        failure.isTransient
+    }
 }
 
 /// Command for resync contexts (startup, auto-resync, manual sync): run preflight with
@@ -194,9 +200,10 @@ struct ResyncCommand: RetryableCommand {
         let outcome = PreflightRunner.runPreflightOutcome()
         guard outcome.success else {
             if let f = outcome.failure {
-                return .failure(PreflightFailureError(failure: f))
+                let error = PreflightFailureError(failure: f)
+                return .failure(error)
             }
-            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown)))
+            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown, isTransient: false)))
         }
         AppLogger.info("ResyncCommand: context=\(context) — fetching timecard status from King of Time and updating session state")
         AutomationInvoker.shared.runAppStartLog()
@@ -205,19 +212,11 @@ struct ResyncCommand: RetryableCommand {
     }
 }
 
-/// Command for user-initiated Clock In. Runs preflight once, then performs a single
-/// clock-in via AutomationInvoker and routes success/failure through SessionManager
-/// helpers. BackoffRetryRunner can be layered on top if desired in the future.
+/// Command for user-initiated Clock In. Performs clock-in via AutomationInvoker and routes
+/// success/failure through SessionManager helpers. Preflight is run by AutomationController
+/// before this command executes.
 struct ClockInCommand: RetryableCommand {
     func execute() -> Result<Void, Error> {
-        let outcome = PreflightRunner.runPreflightOutcome()
-        guard outcome.success else {
-            if let f = outcome.failure {
-                return .failure(PreflightFailureError(failure: f))
-            }
-            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown)))
-        }
-
         let session = SessionManager.shared
         session.objectWillChange.send()
         session.isAutomationRunning = true
@@ -236,17 +235,11 @@ struct ClockInCommand: RetryableCommand {
     }
 }
 
-/// Command for user-initiated Clock Out. Same pattern as ClockInCommand.
+/// Command for user-initiated Clock Out. Performs clock-out via AutomationInvoker and routes
+/// success/failure through SessionManager helpers. Preflight is run by AutomationController
+/// before this command executes.
 struct ClockOutCommand: RetryableCommand {
     func execute() -> Result<Void, Error> {
-        let outcome = PreflightRunner.runPreflightOutcome()
-        guard outcome.success else {
-            if let f = outcome.failure {
-                return .failure(PreflightFailureError(failure: f))
-            }
-            return .failure(PreflightFailureError(failure: PreflightFailure(reasonKey: "preflight.unknown", iconName: "exclamationmark.triangle", kind: .unknown)))
-        }
-
         let session = SessionManager.shared
         session.objectWillChange.send()
         session.isAutomationRunning = true

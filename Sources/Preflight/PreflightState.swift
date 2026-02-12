@@ -103,8 +103,13 @@ final class PreflightState: ObservableObject {
         guard !canRunAutomation else { return nil }
         if let f = lastFailure { return f.reasonKey }
         if !networkConnected { return "preflight.network_offline" }
-        // Credentials missing OR an explicit keychain error → treat as one "credentials" error bucket.
-        if !CredentialsManager.shared.hasStoredCredentials { return "preflight.keychain_error" }
+        // Credentials missing → credentials required; explicit keychain error → keychain error
+        if !CredentialsManager.shared.hasStoredCredentials {
+            if keychainError == nil || keychainError?.isEmpty == true {
+                return "preflight.credentials_required"
+            }
+            return "preflight.keychain_error"
+        }
         if let err = keychainError, !err.isEmpty { return "preflight.keychain_error" }
         if nodeResolved != true { return "preflight.node_not_found" }
         if !siteReachable { return "preflight.cannot_reach_site" }
@@ -116,8 +121,13 @@ final class PreflightState: ObservableObject {
         guard !canRunAutomation else { return nil }
         if let f = lastFailure { return f.iconName }
         if !networkConnected { return "wifi.exclamationmark.circle" }
-        // Credentials missing OR keychain error → credentials icon.
-        if !CredentialsManager.shared.hasStoredCredentials { return "person.crop.circle.badge.exclamationmark" }
+        // Credentials missing → plus icon; keychain error → exclamation icon
+        if !CredentialsManager.shared.hasStoredCredentials {
+            if keychainError == nil || keychainError?.isEmpty == true {
+                return "person.crop.circle.badge.plus"
+            }
+            return "person.crop.circle.badge.exclamationmark"
+        }
         if let err = keychainError, !err.isEmpty { return "person.crop.circle.badge.exclamationmark" }
         if nodeResolved != true { return "circle.slash" }
         if !siteReachable { return "mappin.slash.circle" }
