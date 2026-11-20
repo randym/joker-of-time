@@ -115,7 +115,7 @@ Webベースのタイムカードに出勤・退勤を打刻する作業は、
 これで完了です。
 
 - DMGは **macOSでノータライズ済み**
-- 初回起動時に King of Time の認証情報を入力します
+- 初回起動時は、**Settings** が自動的に開き、King of Time の認証情報を入力できます
 - デフォルトで **ログイン時に自動起動** します
 
 もしここで壊れる場合は、たぶん何か冒険的なことをしています。  
@@ -153,7 +153,7 @@ Joker of Time はメニューバーに常駐し、基本的には静かにして
 - **タイムカード同期**  
   他の場所で打刻した場合の更新
 - **Settings**  
-  認証情報、勤務時間、URL、ログイン時起動
+  認証情報、勤務時間、ログイン時起動
 - **About**  
   バージョンや状態の確認
 
@@ -163,11 +163,9 @@ Joker of Time はメニューバーに常駐し、基本的には静かにして
 
 ## 設定
 
-<p align="center"><img src="docs/screenshots/credentials.png" alt="Credentials window (first launch)" width="50%"/></p>
-
 ### King of Time 認証情報
 
-初回起動時（または未設定の場合）、認証情報入力画面が表示されます。
+初回起動時（または未設定の場合）、**Settings** が自動的に開き、認証情報を入力できます。
 
 以下を入力してください：
 
@@ -187,12 +185,7 @@ King of Time の打刻サイトと同じものです。
 
 ## Settings
 
-<p align="center"><img src="docs/screenshots/settings.png" alt="Settings: work day hours, credentials, URL" width="50%"/></p>
-
-### King of Time URL
-
-会社専用のURLがある場合はここで設定できます。  
-通常は変更不要です。
+<p align="center"><img src="docs/screenshots/ja/settings.png" alt="Settings: work day hours, credentials" width="50%"/></p>
 
 ### Credentials
 
@@ -224,7 +217,7 @@ King of Time の打刻サイトと同じものです。
 
 ### 「出勤しますか？」（出勤）
 
-<p align="center"><img src="docs/screenshots/start-work.png" alt="Start work? dialog" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/ja/start-work.png" alt="Start work? dialog" width="50%"/></p>
 
 勤務日に未出勤の状態だと、  
 「出勤しますか？」ダイアログが表示されます。
@@ -240,10 +233,10 @@ King of Time の打刻サイトと同じものです。
 
 #### 定時到達時
 
-<p align="center"><img src="docs/screenshots/stop-work-on-time.png" alt="End of shift: ready to clock out" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/ja/stop-work-on-time.png" alt="End of shift: ready to clock out" width="50%"/></p>
 
 設定した勤務時間に達すると、  
-「STOP WORK!」ダイアログが表示されます。
+「退勤しますか？」ダイアログが表示されます。
 
 予定通り働いたので、  
 そろそろ終わってもいい時間です。
@@ -254,7 +247,7 @@ King of Time の打刻サイトと同じものです。
 
 #### 残業中
 
-<p align="center"><img src="docs/screenshots/stop-work-overtime.png" alt="Over planned hours: Xh Ym over, clock out" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/ja/stop-work-late.png" alt="Over planned hours: Xh Ym over, clock out" width="50%"/></p>
 
 そのまま働き続けると、  
 どれくらいオーバーしているか表示されます。
@@ -268,7 +261,7 @@ King of Time の打刻サイトと同じものです。
 
 #### 早めに退勤する場合
 
-<p align="center"><img src="docs/screenshots/stop-work-early.png" alt="Clock out early: confirm with time remaining" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/ja/stop-work-early.png" alt="Clock out early: confirm with time remaining" width="50%"/></p>
 
 勤務時間に達する前に退勤すると、  
 残り時間が表示されます。

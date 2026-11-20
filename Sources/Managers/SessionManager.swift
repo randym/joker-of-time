@@ -554,6 +554,62 @@ final class SessionManager: ObservableObject {
         }
     }
 
+    // MARK: - Screenshot mode (production-compatible)
+
+    /// Screenshot dialog kinds that can be triggered for screenshot capture.
+    enum ScreenshotDialogKind: String, CaseIterable {
+        case startWork = "start-work"
+        case stopWorkEarly = "stop-work-early"
+        case stopWorkOnTime = "stop-work-on-time"
+        case stopWorkLate = "stop-work-late"
+        case alreadyClockedIn = "already-clocked-in"
+        case alreadyClockedOut = "already-clocked-out"
+        case notClockedIn = "not-clocked-in"
+        case cannotClockOut = "cannot-clock-out"
+        case credentialsRequired = "credentials-required"
+        case loginFailed = "login-failed"
+        case networkOffline = "network-offline"
+        case cannotReachSite = "cannot-reach-site"
+        case nodeNotFound = "node-not-found"
+        case somethingWentWrong = "something-went-wrong"
+    }
+
+    /// Show a dialog for screenshot capture. Works in production when screenshot mode is enabled.
+    func showScreenshotDialog(_ kind: ScreenshotDialogKind) {
+        guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+        
+        switch kind {
+        case .startWork: 
+            showStartWorkPrompt()
+        case .stopWorkEarly: 
+            StopWorkEarly.present()
+        case .stopWorkOnTime: 
+            StopWorkOnTime.present()
+        case .stopWorkLate: 
+            StopWorkLate.present()
+        case .alreadyClockedIn: 
+            showAlreadyClockedInAlert()
+        case .alreadyClockedOut: 
+            AlreadyClockedOut.present()
+        case .notClockedIn: 
+            NotClockedIn.present()
+        case .cannotClockOut: 
+            CannotClockOut.present()
+        case .credentialsRequired: 
+            showCredentialsRequiredAlert()
+        case .loginFailed: 
+            showLoginFailedAlert()
+        case .networkOffline: 
+            showNetworkOfflineAlert()
+        case .cannotReachSite: 
+            showCannotReachSiteAlert()
+        case .nodeNotFound: 
+            showNodeNotFoundAlert()
+        case .somethingWentWrong: 
+            showSomethingWentWrongAlert()
+        }
+    }
+
     /// Local-only: present the Stop Work dialog (same component as real flow) with sample text for testing.
     private enum StopWorkTestVariant {
         case early      // Before work day done (under planned hours)

@@ -102,7 +102,7 @@ Install from the **DMG** in
 That’s it.
 
 - The DMG is **notarized** for macOS
-- On first launch you’ll be asked for your King of Time credentials
+- On first launch, **Settings** will automatically open for you to enter your King of Time credentials
 - The app is set to **launch at login** by default
 
 If you manage to break this during installation, you were probably trying something adventurous. Try the default steps first.
@@ -138,7 +138,7 @@ From the menu you can:
 - **Sync Timecard**  
   Refresh from King of Time if you punched elsewhere.
 - **Settings**  
-  Credentials, work hours, URL, launch at login.
+  Credentials, work hours, launch at login.
 - **About**  
   Version, status, and Node version.
 
@@ -148,11 +148,9 @@ Nothing fancy. Just the things you actually need.
 
 ## Configuration
 
-<p align="center"><img src="docs/screenshots/credentials.png" alt="Credentials window (first launch)" width="50%"/></p>
-
 ### King of Time credentials
 
-On first run (or if none are saved), a credentials window appears.
+On first run (or if none are saved), **Settings** will automatically open for you to enter your credentials.
 
 Enter the same:
 
@@ -172,12 +170,7 @@ You can update them anytime from **Settings**.
 
 ## Settings
 
-<p align="center"><img src="docs/screenshots/settings.png" alt="Settings: work day hours, credentials, URL" width="50%"/></p>
-
-### King of Time URL
-
-If your company uses a custom King of Time endpoint, you can set it here.  
-Most users should leave the default alone.
+<p align="center"><img src="docs/screenshots/en/settings.png" alt="Settings: work day hours, credentials" width="50%"/></p>
 
 ### Credentials
 
@@ -209,7 +202,7 @@ Useful if, like many developers, you haven’t restarted in a suspiciously long 
 
 ### “Start work?” (clock in)
 
-<p align="center"><img src="docs/screenshots/start-work.png" alt="Start work? dialog" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/en/start-work.png" alt="Start work? dialog" width="50%"/></p>
 
 On a working day, when you’re not clocked in yet, the app may show a **“Start work?”** dialog.
 
@@ -228,9 +221,9 @@ You can also clock in anytime from the menu.
 
 #### End of shift (automatic)
 
-<p align="center"><img src="docs/screenshots/stop-work-on-time.png" alt="End of shift: ready to clock out" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/en/stop-work-on-time.png" alt="End of shift: ready to clock out" width="50%"/></p>
 
-Once you’ve worked your configured hours, the app shows a **“STOP WORK!”** dialog.
+Once you've worked your configured hours, the app shows a **"Clock out?"** dialog.
 
 You planned your hours.  
 You worked your hours.  
@@ -242,7 +235,7 @@ One click clocks you out.
 
 #### Over planned hours
 
-<p align="center"><img src="docs/screenshots/stop-work-overtime.png" alt="Over planned hours: Xh Ym over, clock out" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/en/stop-work-late.png" alt="Over planned hours: Xh Ym over, clock out" width="50%"/></p>
 
 If you keep working, the dialog shows how far over you are.
 
@@ -254,7 +247,7 @@ Not aggressively. Just persistently. Like a polite coworker who wants to go home
 
 #### Leaving early (from the menu)
 
-<p align="center"><img src="docs/screenshots/stop-work-early.png" alt="Clock out early: confirm with time remaining" width="50%"/></p>
+<p align="center"><img src="docs/screenshots/en/stop-work-early.png" alt="Clock out early: confirm with time remaining" width="50%"/></p>
 
 If you clock out before your planned hours, the app shows how much time is left.
 

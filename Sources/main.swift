@@ -40,6 +40,7 @@ extension Notification.Name {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    
     @objc func applySystemAppearance() {
         let isDark: Bool
         if let global = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain),
@@ -100,6 +101,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { _ in
             SessionManager.shared.onCredentialsCleared()
+        }
+        
+        // Screenshot mode: listen for menu, About window, and dialog trigger notifications
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("JokerOfTimeShowScreenshotMenu"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+            StatusItemManager.shared.showMenuForScreenshot()
+        }
+        
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("JokerOfTimeShowScreenshotAbout"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+            StatusItemManager.shared.showAboutForScreenshot()
+        }
+        
+        // Screenshot mode: listen for dialog trigger notifications
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("JokerOfTimeShowScreenshotDialog"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard UserDefaults.standard.bool(forKey: "JokerOfTimeScreenshotMode") else { return }
+            guard let dialogKindString = notification.userInfo?["dialogKind"] as? String,
+                  let dialogKind = SessionManager.ScreenshotDialogKind(rawValue: dialogKindString) else {
+                return
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            SessionManager.shared.showScreenshotDialog(dialogKind)
         }
 
         // Background triggers only: use backoff retry (transient failures common). User-initiated (launch, credentials saved, settings close) run once and fail.
